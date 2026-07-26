@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "universe": "Setup Universe",
+  "id": "molecular",
+  "name": "MolecularSetup",
+  "domain": "molecularsetup.com",
+  "url": "https://molecularsetup.com/",
+  "field": "Molecular and materials systems",
+  "status": "preliminary-wrapper",
+  "rebuild": "from-scratch",
+  "plannedInteroperability": true,
+  "interfaceContract": null,
+  "greenfieldContracts": {
+    "vision": "VISION.md",
+    "domainModel": "MOLECULAR_MODEL_CONTRACT.md",
+    "interface": "INTERFACE_CONTRACT.md",
+    "claimsAndValidation": "CLAIMS_AND_VALIDATION.md",
+    "acceptance": "ACCEPTANCE_TESTS.md"
+  },
+  "firstAcceptedSlice": "Build one reduced-unit Lennard–Jones box with a documented force field, ensemble, integrator, timestep, thermostat, and quantitative energy-drift validation.",
+  "ownershipBoundary": "MolecularSetup owns molecular/material state and response; OpticalSetup owns instrument propagation; QuantumSetup owns explicitly quantum evolution; downstream setups consume material properties through versioned ports.",
+  "claimGate": "The force-field validity domain, ensemble, integrator, timestep, and mapping to physical units must be explicit; no chemical identity, reaction, toxicity, or material-qualification claim is allowed by default.",
+  "currentPrototype": {
+    "status": "temporary-live-demo",
+    "role": "reference-snapshot",
+    "immutable": true,
+    "sharedRuntime": true,
+    "path": "prototype/",
+    "productionRelease": "20260726T002235Z-478235af2650",
+    "verifiedAt": "2026-07-26",
+    "deployedSourceSha256": "478235af26508aa70aa2af5f0196c9868b92ded1bed88106a9aa1a1cd86f8ba5",
+    "entryModel": "assets/simulations/molecular.js",
+    "modelBoundary": {
+      "scope": "Particles follow classical reduced-unit dynamics with pairwise Lennard–Jones forces, periodic boundaries, and an optional weak Berendsen thermostat.",
+      "limits": [
+        "The model is two-dimensional and uses reduced units rather than a specific molecule.",
+        "The thermostat rescales velocities gently; it does not reproduce a full canonical ensemble.",
+        "Pair forces are softened at very short range and truncated for real-time stability."
+      ]
+    },
+    "productionManagedSeparately": true,
+    "keepLiveUntilReplacementAuthorized": true
+  },
+  "repository": "https://github.com/bertona88/molecularsetup",
+  "siblings": [
+    {
+      "id": "pic",
+      "name": "PicSetup",
+      "domain": "picsetup.com",
+      "repository": "https://github.com/bertona88/picsetup"
+    },
+    {
+      "id": "electrical",
+      "name": "ElectricalSetup",
+      "domain": "electricalsetup.com",
+      "repository": "https://github.com/bertona88/electricalsetup"
+    },
+    {
+      "id": "biological",
+      "name": "BiologicalSetup",
+      "domain": "biologicalsetup.com",
+      "repository": "https://github.com/bertona88/biologicalsetup"
+    },
+    {
+      "id": "gravity",
+      "name": "GravitySetup",
+      "domain": "gravitysetup.com",
+      "repository": "https://github.com/bertona88/gravitysetup"
+    },
+    {
+      "id": "two-photon",
+      "name": "TwoPhotonLithography",
+      "domain": "twophotonlithography.com",
+      "repository": "https://github.com/bertona88/twophotonlithography"
+    },
+    {
+      "id": "ego",
+      "name": "EgoSetup",
+      "domain": "egosetup.com",
+      "repository": "https://github.com/bertona88/egosetup"
+    },
+    {
+      "id": "quantum",
+      "name": "QuantumSetup",
+      "domain": "quantumsetup.ai",
+      "repository": "https://github.com/bertona88/quantumsetup"
+    },
+    {
+      "id": "noetic",
+      "name": "NoeticSetup",
+      "domain": "noeticsetup.com",
+      "repository": "https://github.com/bertona88/noeticsetup"
+    },
+    {
+      "id": "computation",
+      "name": "ComputationSetup",
+      "domain": "computationsetup.com",
+      "repository": "https://github.com/bertona88/computationsetup"
+    },
+    {
+      "id": "logistic",
+      "name": "LogisticSetup",
+      "domain": "logisticsetup.com",
+      "repository": "https://github.com/bertona88/logisticsetup"
+    }
+  ],
+  "opticalSetup": {
+    "repositoryOwner": "LucaGenchi",
+    "external": true,
+    "changesVia": "focused-pull-request",
+    "repository": "https://github.com/LucaGenchi/optics-sketch",
+    "url": "https://opticalsetup.com/sketch/"
+  }
+}
