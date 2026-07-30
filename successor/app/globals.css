@@ -1,0 +1,742 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #e9f7fb;
+  --muted: #8eb2c3;
+  --panel: rgba(8, 19, 31, 0.86);
+  --panel-strong: rgba(10, 24, 38, 0.96);
+  --panel-rim: rgba(208, 241, 255, 0.13);
+  --ice: #8be4ff;
+  --amber: #ffcc70;
+  --coral: #ff6c72;
+  --blue: #4caeff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #07111d;
+  color: var(--ink);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.lab-shell {
+  position: fixed;
+  inset: 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at 56% 42%, rgba(23, 63, 82, 0.72), transparent 53%),
+    radial-gradient(circle at 82% 84%, rgba(20, 54, 79, 0.34), transparent 48%),
+    linear-gradient(145deg, #07111d 0%, #091827 58%, #06101b 100%);
+}
+
+.lab-shell::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: "";
+  pointer-events: none;
+  background:
+    linear-gradient(rgba(150, 216, 238, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(150, 216, 238, 0.018) 1px, transparent 1px);
+  background-size: 84px 84px;
+  mask-image: radial-gradient(circle at 55% 45%, #000, transparent 75%);
+}
+
+.molecular-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: grab;
+  touch-action: none;
+  outline: none;
+}
+
+.molecular-canvas:active {
+  cursor: grabbing;
+}
+
+.molecular-canvas.is-drawing-boundary {
+  cursor: crosshair;
+}
+
+.molecular-canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px rgba(139, 228, 255, 0.55);
+}
+
+.molecule-tray {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  left: max(16px, env(safe-area-inset-left));
+  z-index: 4;
+  width: 116px;
+  border: 1px solid var(--panel-rim);
+  border-radius: 25px;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.045), transparent 28%),
+    var(--panel);
+  box-shadow:
+    0 24px 60px rgba(0, 5, 12, 0.46),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px) saturate(1.08);
+}
+
+.tray-scroll {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  gap: 9px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 10px;
+  scrollbar-color: rgba(146, 210, 231, 0.2) transparent;
+  scrollbar-width: thin;
+}
+
+.molecule-card {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border: 1px solid rgba(206, 238, 250, 0.09);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(94, 173, 202, 0.1), transparent 58%),
+    rgba(6, 17, 29, 0.67);
+  transition:
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+.molecule-card:hover {
+  border-color: rgba(152, 225, 248, 0.25);
+  background:
+    radial-gradient(circle at 50% 20%, rgba(94, 173, 202, 0.17), transparent 62%),
+    rgba(8, 22, 35, 0.8);
+}
+
+.molecule-button {
+  display: block;
+  width: 100%;
+  height: 83px;
+  margin: 0;
+  border: 0;
+  padding: 6px 5px 0;
+  color: inherit;
+  cursor: grab;
+  touch-action: none;
+  background: transparent;
+}
+
+.molecule-button:active {
+  cursor: grabbing;
+}
+
+.molecule-button:focus-visible,
+.icon-button:focus-visible,
+.quantity-control input:focus-visible,
+.temperature-control input:focus-visible {
+  outline: 2px solid var(--ice);
+  outline-offset: 2px;
+}
+
+.molecule-thumbnail {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.molecule-thumbnail svg {
+  display: block;
+  width: 100%;
+  height: 64px;
+  overflow: visible;
+  filter: drop-shadow(0 5px 9px rgba(0, 0, 0, 0.28));
+}
+
+.thumbnail-bond {
+  stroke: rgba(167, 211, 225, 0.62);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+}
+
+.molecule-formula {
+  position: absolute;
+  right: 4px;
+  bottom: 0;
+  color: rgba(220, 242, 249, 0.74);
+  font-size: 10px;
+  font-weight: 720;
+  letter-spacing: -0.02em;
+}
+
+.quantity-control {
+  position: relative;
+  display: block;
+  height: 38px;
+  padding: 0 9px 9px;
+}
+
+.quantity-control input {
+  position: relative;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 18px;
+  margin: 0;
+  cursor: ew-resize;
+  appearance: none;
+  background: transparent;
+}
+
+.quantity-control input::-webkit-slider-runnable-track {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    rgba(132, 203, 227, 0.26),
+    rgba(139, 228, 255, 0.82)
+  );
+}
+
+.quantity-control input::-moz-range-track {
+  height: 3px;
+  border-radius: 99px;
+  background: linear-gradient(
+    90deg,
+    rgba(132, 203, 227, 0.26),
+    rgba(139, 228, 255, 0.82)
+  );
+}
+
+.quantity-control input::-webkit-slider-thumb {
+  width: 15px;
+  height: 15px;
+  margin-top: -6px;
+  border: 2px solid #d8f7ff;
+  border-radius: 50%;
+  appearance: none;
+  background: #50c8e9;
+  box-shadow: 0 0 0 4px rgba(80, 200, 233, 0.13);
+}
+
+.quantity-control input::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border: 2px solid #d8f7ff;
+  border-radius: 50%;
+  background: #50c8e9;
+  box-shadow: 0 0 0 4px rgba(80, 200, 233, 0.13);
+}
+
+.quantity-bubble {
+  position: absolute;
+  top: -16px;
+  left: 9px;
+  z-index: 3;
+  min-width: 26px;
+  border: 1px solid rgba(164, 225, 244, 0.16);
+  border-radius: 8px;
+  padding: 2px 5px;
+  color: #d9f5fc;
+  background: rgba(15, 39, 54, 0.88);
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 720;
+  line-height: 1;
+  text-align: center;
+  transition: transform 120ms ease;
+}
+
+.quantity-control:focus-within .quantity-bubble,
+.quantity-control:active .quantity-bubble {
+  transform: scale(1.16);
+}
+
+.quantity-scale {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  left: 9px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 6px;
+  pointer-events: none;
+}
+
+.quantity-scale i {
+  display: block;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(162, 218, 236, 0.28);
+}
+
+.quantity-scale i:nth-child(2) {
+  width: 3px;
+  height: 3px;
+}
+
+.quantity-scale i:nth-child(3) {
+  width: 4px;
+  height: 4px;
+}
+
+.quantity-scale i:nth-child(4) {
+  width: 5px;
+  height: 5px;
+}
+
+.quantity-scale i:nth-child(5) {
+  width: 6px;
+  height: 6px;
+}
+
+.utility-dock {
+  position: absolute;
+  top: max(16px, env(safe-area-inset-top));
+  right: max(18px, env(safe-area-inset-right));
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  border: 1px solid var(--panel-rim);
+  border-radius: 20px;
+  padding: 7px;
+  background: var(--panel);
+  box-shadow: 0 18px 46px rgba(0, 5, 12, 0.36);
+  backdrop-filter: blur(16px);
+}
+
+.icon-button {
+  position: relative;
+  display: grid;
+  width: 49px;
+  height: 49px;
+  place-items: center;
+  border: 1px solid rgba(203, 239, 251, 0.1);
+  border-radius: 15px;
+  padding: 0;
+  color: #b8dae5;
+  cursor: pointer;
+  background: rgba(10, 26, 40, 0.8);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  transition:
+    color 150ms ease,
+    border-color 150ms ease,
+    background 150ms ease,
+    transform 120ms ease;
+}
+
+.icon-button:hover {
+  color: #e2f8ff;
+  border-color: rgba(160, 225, 247, 0.26);
+  background: rgba(17, 42, 58, 0.92);
+}
+
+.icon-button:active {
+  transform: scale(0.95);
+}
+
+.icon-button svg,
+.temperature-icon svg {
+  width: 23px;
+  height: 23px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.primary-control {
+  color: #d9f7ff;
+  border-color: rgba(126, 224, 255, 0.28);
+  background:
+    radial-gradient(circle at 50% 25%, rgba(142, 232, 255, 0.18), transparent 62%),
+    rgba(15, 48, 65, 0.9);
+}
+
+.boundary-button.is-active {
+  color: #ffdc91;
+  border-color: rgba(255, 199, 99, 0.62);
+  background: rgba(83, 55, 21, 0.78);
+  box-shadow:
+    0 0 0 3px rgba(255, 197, 93, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.delete-boundary {
+  color: #ffb3a9;
+}
+
+.reset-button {
+  margin-left: 6px;
+}
+
+.reset-button::before {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: -8px;
+  width: 1px;
+  content: "";
+  background: rgba(194, 228, 240, 0.1);
+}
+
+.reset-progress {
+  position: absolute;
+  inset: 3px;
+  border-radius: 13px;
+  pointer-events: none;
+}
+
+.reset-button.is-holding .reset-progress {
+  background: conic-gradient(var(--coral) 0turn, var(--coral) 1turn);
+  mask: radial-gradient(transparent 61%, #000 63%);
+  animation: reset-fill 720ms linear forwards;
+}
+
+@keyframes reset-fill {
+  from {
+    clip-path: polygon(50% 50%, 50% 0, 50% 0, 50% 0);
+    opacity: 0.3;
+  }
+  to {
+    clip-path: polygon(50% 50%, 50% 0, 100% 0, 100% 100%, 0 100%, 0 0);
+    opacity: 1;
+  }
+}
+
+.temperature-control {
+  position: absolute;
+  top: 50%;
+  right: max(18px, env(safe-area-inset-right));
+  z-index: 4;
+  display: grid;
+  width: 58px;
+  height: min(260px, 42vh);
+  min-height: 198px;
+  grid-template-rows: 45px 1fr 45px;
+  align-items: center;
+  justify-items: center;
+  border: 1px solid var(--panel-rim);
+  border-radius: 24px;
+  background: var(--panel);
+  box-shadow: 0 18px 48px rgba(0, 5, 12, 0.38);
+  transform: translateY(-50%);
+  backdrop-filter: blur(16px);
+}
+
+.temperature-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+}
+
+.temperature-icon.cold {
+  color: #65bcff;
+}
+
+.temperature-icon.hot {
+  color: #ff7777;
+}
+
+.temperature-rail {
+  position: relative;
+  display: grid;
+  width: 28px;
+  height: 100%;
+  place-items: center;
+  border-radius: 99px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 106, 103, 0.16),
+    rgba(114, 95, 203, 0.12) 48%,
+    rgba(73, 170, 255, 0.16)
+  );
+}
+
+.temperature-rail::before {
+  position: absolute;
+  top: 10px;
+  bottom: 10px;
+  left: 50%;
+  width: 5px;
+  border-radius: 99px;
+  content: "";
+  background: linear-gradient(to bottom, #ff676d, #9f6db8 48%, #49aeff);
+  box-shadow: 0 0 15px rgba(117, 181, 235, 0.2);
+  transform: translateX(-50%);
+}
+
+.temperature-rail input {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  cursor: ns-resize;
+  appearance: slider-vertical;
+  writing-mode: vertical-lr;
+  direction: rtl;
+  opacity: 0.001;
+}
+
+.temperature-rail::after {
+  position: absolute;
+  top: calc(10px + (100% - 20px) * var(--temperature-position, 0.64));
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(241, 252, 255, 0.94);
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+  background: #8f77b4;
+  box-shadow:
+    0 0 0 4px rgba(141, 193, 229, 0.12),
+    0 4px 12px rgba(0, 0, 0, 0.38);
+  transform: translate(-50%, -50%);
+}
+
+.drag-ghost {
+  --ghost-x: 0px;
+  --ghost-y: 0px;
+  position: fixed;
+  top: var(--ghost-y);
+  left: var(--ghost-x);
+  z-index: 20;
+  width: 96px;
+  height: 96px;
+  border: 1px solid rgba(159, 228, 249, 0.2);
+  border-radius: 24px;
+  pointer-events: none;
+  opacity: 0;
+  background: rgba(9, 24, 37, 0.76);
+  box-shadow: 0 20px 42px rgba(0, 4, 10, 0.42);
+  transform: translate(-50%, -50%) scale(0.78);
+  transition:
+    opacity 100ms ease,
+    transform 100ms ease;
+  backdrop-filter: blur(10px);
+}
+
+.drag-ghost.is-active {
+  opacity: 0.94;
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.drag-ghost .molecule-thumbnail {
+  width: 88px;
+  height: 75px;
+  margin: 2px auto 0;
+}
+
+.drag-ghost > span {
+  position: absolute;
+  right: -9px;
+  bottom: -8px;
+  min-width: 34px;
+  border: 2px solid rgba(220, 249, 255, 0.9);
+  border-radius: 11px;
+  padding: 5px 7px;
+  color: #e8fbff;
+  background: #17465b;
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.drag-ghost > i {
+  position: absolute;
+  z-index: -1;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(131, 221, 248, 0.44);
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.drag-ghost > i:nth-of-type(1) {
+  top: 3px;
+  left: -8px;
+}
+
+.drag-ghost > i:nth-of-type(2) {
+  top: 35px;
+  right: -15px;
+}
+
+.drag-ghost > i:nth-of-type(3) {
+  bottom: -12px;
+  left: 12px;
+}
+
+.drag-ghost > i:nth-of-type(4) {
+  right: 9px;
+  bottom: -19px;
+}
+
+.sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  white-space: nowrap !important;
+  clip-path: inset(50%) !important;
+}
+
+@media (max-width: 700px) {
+  .molecule-tray {
+    top: auto;
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+    height: 126px;
+    border-radius: 22px;
+  }
+
+  .tray-scroll {
+    flex-direction: row;
+    gap: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 9px;
+    scroll-snap-type: x proximity;
+  }
+
+  .molecule-card {
+    width: 98px;
+    scroll-snap-align: start;
+  }
+
+  .molecule-button {
+    height: 76px;
+  }
+
+  .molecule-thumbnail svg {
+    height: 57px;
+  }
+
+  .quantity-control {
+    height: 34px;
+    padding-bottom: 6px;
+  }
+
+  .quantity-bubble {
+    top: -15px;
+  }
+
+  .quantity-scale {
+    bottom: 5px;
+  }
+
+  .utility-dock {
+    top: max(10px, env(safe-area-inset-top));
+    right: max(10px, env(safe-area-inset-right));
+    gap: 5px;
+    padding: 5px;
+    border-radius: 17px;
+  }
+
+  .icon-button {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .reset-button {
+    margin-left: 3px;
+  }
+
+  .temperature-control {
+    top: 44%;
+    right: max(10px, env(safe-area-inset-right));
+    width: 52px;
+    height: min(210px, 36vh);
+    min-height: 166px;
+    grid-template-rows: 40px 1fr 40px;
+    border-radius: 21px;
+  }
+}
+
+@media (max-height: 500px) {
+  .molecule-tray {
+    top: max(8px, env(safe-area-inset-top));
+    bottom: max(8px, env(safe-area-inset-bottom));
+    left: max(8px, env(safe-area-inset-left));
+    width: 104px;
+  }
+
+  .molecule-card {
+    border-radius: 15px;
+  }
+
+  .molecule-button {
+    height: 70px;
+  }
+
+  .molecule-thumbnail svg {
+    height: 52px;
+  }
+
+  .temperature-control {
+    height: 154px;
+    min-height: 154px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .drag-ghost > i {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .molecule-card,
+  .molecule-tray,
+  .utility-dock,
+  .temperature-control,
+  .icon-button {
+    border: 1px solid CanvasText;
+  }
+}

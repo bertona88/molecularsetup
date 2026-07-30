@@ -1,5 +1,34 @@
 # MolecularSetup
 
+## Greenfield molecular canvas
+
+The new interaction/model prototype lives in [`successor/`](./successor). It is
+a nearly textless 2D molecular world with visual starting molecules, quantities
+from 1 to 1000, direct drop placement, temperature-driven motion, generic
+state-derived bonding and breaking, and drawable piston boundaries.
+
+Run it with:
+
+```sh
+npm run successor:install
+npm run successor:dev
+```
+
+Build and validate it with:
+
+```sh
+npm run successor:test
+```
+
+This slice is explicitly qualitative. Read [`VISION.md`](./VISION.md),
+[`MOLECULAR_MODEL_CONTRACT.md`](./MOLECULAR_MODEL_CONTRACT.md),
+[`INTERFACE_CONTRACT.md`](./INTERFACE_CONTRACT.md),
+[`CLAIMS_AND_VALIDATION.md`](./CLAIMS_AND_VALIDATION.md), and
+[`ACCEPTANCE_TESTS.md`](./ACCEPTANCE_TESTS.md) before interpreting or extending
+its behavior.
+
+---
+
 > **Preliminary Setup Universe wrapper.** The current demo is temporary; the full simulator is expected to be redesigned and rebuilt substantially from scratch.
 
 - **Live prototype:** https://molecularsetup.com/
