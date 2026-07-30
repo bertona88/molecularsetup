@@ -5,7 +5,7 @@
   "description": "Preliminary Setup Universe wrapper for MolecularSetup.",
   "homepage": "https://molecularsetup.com/",
   "scripts": {
-    "successor:install": "npm --prefix successor install",
+    "successor:install": "npm --prefix successor run restore:lock && npm --prefix successor install",
     "successor:dev": "npm --prefix successor run dev",
     "successor:build": "npm --prefix successor run build",
     "successor:test": "npm --prefix successor test",

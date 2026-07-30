@@ -23,6 +23,7 @@ outcomes.
 ## Run
 
 ```sh
+npm run restore:lock
 npm install
 npm run dev
 ```
@@ -36,6 +37,10 @@ npm test
 
 `npm test` builds the Cloudflare Worker-compatible artifact and checks the
 server-rendered interaction contract.
+
+The dependency lock is stored as small compressed parts so this branch can be
+published through the repository connector. `npm run restore:lock` reconstructs
+the exact lock file and verifies its SHA-256 before installation.
 
 ## Model status
 
