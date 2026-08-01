@@ -1,0 +1,8 @@
+{
+  "schemaVersion": 1,
+  "abiVersion": 1,
+  "modelVersion": 1,
+  "sourceSha256": "ee99b8d7613874055d335f9f0e410aeabcf2674d80728a769dcd24ad22f00d68",
+  "wasmSha256": "c749f04e9b45b9eecb2de2dc476ba106daaa075d3574be711b4e8ca1983a4edb",
+  "wasmBytes": 76485
+}

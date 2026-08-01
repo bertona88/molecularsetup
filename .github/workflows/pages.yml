@@ -1,0 +1,71 @@
+name: Test and deploy MolecularSetup to GitHub Pages
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: successor/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci --prefix successor
+
+      - name: Lint static application
+        run: npm run successor:lint
+
+      - name: Test and build static application
+        run: npm run successor:test
+
+      - name: Test native Rust engine
+        working-directory: successor
+        run: cargo test --manifest-path engine/Cargo.toml --locked --offline
+
+      - name: Rebuild reproducible Wasm engine
+        working-directory: successor
+        run: |
+          npm run engine:build
+          git diff --exit-code -- public/engine
+
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: successor/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
