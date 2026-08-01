@@ -8,7 +8,7 @@ import {
   speciesEngineId,
 } from "./molecular-catalog";
 
-export const ENGINE_WASM_URL = "/engine/molecularsetup_engine.wasm";
+export const ENGINE_WASM_URL = `${import.meta.env.BASE_URL}engine/molecularsetup_engine.wasm`;
 export const ENGINE_ABI_VERSION = 1;
 export const ENGINE_MODEL_VERSION = 1;
 export const DEFAULT_WORLD_SEED = 0x4d4f4c45;

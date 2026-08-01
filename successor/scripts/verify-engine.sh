@@ -17,8 +17,8 @@ case "${1:-}" in
     node "${script_dir}/engine-artifact.mjs" verify \
       "${public_wasm}" \
       "${public_manifest}" \
-      "${project_root}/dist/client/engine/${wasm_name}" \
-      "${project_root}/dist/client/engine/molecularsetup_engine.manifest.json"
+      "${project_root}/dist/engine/${wasm_name}" \
+      "${project_root}/dist/engine/molecularsetup_engine.manifest.json"
     ;;
   *)
     echo "usage: scripts/verify-engine.sh [--packaged]" >&2

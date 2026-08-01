@@ -4,7 +4,9 @@
 
 The greenfield successor lives in [`successor/`](./successor). It preserves the
 nearly textless 2D molecular canvas while replacing browser-side heuristic
-physics with a deterministic Rust/WebAssembly engine. It has visual starting
+physics with a deterministic Rust/WebAssembly engine. The successor is a fully
+static Vite/React application: there is no application server, database, or
+remote simulation backend. It has visual starting
 molecules, exact quantities from 1 to 1000, direct drop placement,
 temperature-driven motion, continuous state-derived bonding and breaking, and
 drawable piston boundaries.
@@ -21,6 +23,11 @@ Validate the checked-in Wasm artifact and application with:
 ```sh
 npm run successor:test
 ```
+
+After this branch is merged, `.github/workflows/pages.yml` validates the static
+bundle and publishes `successor/dist/` through GitHub Pages. The existing
+Hetzner release and `molecularsetup.com` DNS remain separate until an explicitly
+authorized production cutover.
 
 The visible reactive model is explicitly qualitative and pedagogical, not
 predictive chemistry. No reaction or product table chooses its outcomes. Read

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const pageUrl = new URL("../app/page.tsx", import.meta.url);
+const pageUrl = new URL("../src/App.tsx", import.meta.url);
 const catalogUrl = new URL("../lib/molecular-catalog.ts", import.meta.url);
 
-test("page remains a Wasm presentation shell with repaired pointer semantics", async () => {
+test("static app remains a Wasm presentation shell with repaired pointer semantics", async () => {
   const source = await readFile(pageUrl, "utf8");
 
   assert.match(

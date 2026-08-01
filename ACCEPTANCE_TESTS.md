@@ -11,18 +11,19 @@
 - A locked offline `wasm32-unknown-unknown` release has zero imports, exports
   memory and every frozen ABI function, and matches its source/artifact
   manifest.
-- The production build contains the exact verified Wasm module and a valid
-  application/server artifact.
-- Server-rendered HTML contains the molecular canvas, molecule tray, simulation
-  controls, pressure-boundary action, play/pause, hold-to-reset, quantity
-  maximum 1000, and all catalog formulae.
+- The production build contains the exact verified Wasm module, a static HTML
+  entry, browser bundle, and GitHub Pages marker, with no server artifact.
+- The static source contract contains the molecular canvas, molecule tray,
+  simulation controls, pressure-boundary action, play/pause, hold-to-reset,
+  quantity maximum 1000, and the frozen species catalog.
 - No dashboard, inspector, or reaction-recipe language appears in the rendered
   experience.
 - Source regression tests reject browser-side forces, bonds, thermal randomness,
   and a JavaScript simulation fallback.
 - Pointer cancellation, active-pointer tracking, fixed drag origins, paused
   stepping, exact species ids, and quantity endpoints are regression-tested.
-- Lint, rendered-contract, real-Wasm ABI, and architecture tests pass.
+- Lint, static-entry, interaction-contract, real-Wasm ABI, and architecture
+  tests pass.
 
 Deployment is deliberately not part of this gate. Hosting verification and
 public replacement require separate authorization and evidence.

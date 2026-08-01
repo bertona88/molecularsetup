@@ -8,8 +8,10 @@ Base: `agent/sites-emergent-canvas`
 
 ## Result
 
-The Rust/Wasm engine, application integration, and packaged artifact pass their
-current automated gates. No deployment or DNS change was performed.
+The Rust/Wasm engine, static Vite/React integration, and GitHub Pages artifact
+pass their current automated gates. The former Vinext/Cloudflare Worker,
+database scaffolding, and Sites packaging were removed. No deployment or DNS
+change was performed.
 
 ## Reproducible checks
 
@@ -17,12 +19,14 @@ current automated gates. No deployment or DNS change was performed.
 |---|---|
 | Native Rust model and LJ fixture | 19 passed, 0 failed; doc tests 0 failed |
 | Real compiled Wasm ABI smoke | 1 passed, 0 failed |
-| Rendered application contract | 2 passed, 0 failed |
+| Static entry and interaction contract | 2 passed, 0 failed |
 | Source architecture and gesture regressions | 2 passed, 0 failed |
 | Full `npm test` without Rust on `PATH` | 5 passed, 0 failed |
 | Lint | passed |
-| Application build and packaged-artifact verification | passed |
-| Clean-target locked/offline Wasm rebuild | passed; byte-identical hash |
+| Node 24 clean `npm ci` | passed; 130 locked packages |
+| Static build and packaged-artifact verification | passed |
+| Repository-subpath asset and Wasm fetch | passed at `/molecularsetup/` |
+| Clean-target Rust 1.74.0 locked/offline Wasm rebuild | passed; byte-identical hash |
 | `git diff --check` | passed |
 
 The native suite covers the analytical force gradient, Newton's third law,
@@ -52,7 +56,19 @@ the complete model and tolerances.
 
 The build verifies that the public artifact, manifest, engine source, and
 packaged application copy agree. A rebuild from an empty Cargo target directory
-produced the same Wasm hash.
+with the newly recorded Rust 1.74.0 pin produced the same Wasm size and hash.
+
+## Static hosting artifact
+
+The production build emits `dist/index.html`, a 222.35 kB browser JavaScript
+bundle (70.25 kB gzip), an 11.54 kB stylesheet (3.52 kB gzip), `.nojekyll`, and
+the verified engine under `dist/engine/`. It emits no server or Worker bundle.
+
+All built URLs are relative. A local HTTP checkpoint mounted the exact artifact
+under `/molecularsetup/`, fetched the JavaScript bundle, and fetched the Wasm
+with SHA-256 `c749f04e9b45b9eecb2de2dc476ba106daaa075d3574be711b4e8ca1983a4edb`.
+The repository workflow runs the same checks for pull requests and publishes
+`successor/dist/` only after a push to `main` or an authorized manual run.
 
 ## Supplementary integration smoke
 

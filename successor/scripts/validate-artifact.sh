@@ -2,38 +2,23 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+project_root="$(cd "${script_dir}/.." && pwd)"
+index="${project_root}/dist/index.html"
+nojekyll="${project_root}/dist/.nojekyll"
 
-if [[ "${SITES_ENV_READY:-}" != "1" ]]; then
-  exec "${script_dir}/sites-env.sh" -- "$0" "$@"
-fi
-
-worker="${SITES_PROJECT_ROOT}/dist/server/index.js"
-hosting="${SITES_PROJECT_ROOT}/dist/.openai/hosting.json"
-
-[[ -f "${worker}" ]] || {
-  echo "Missing Sites Worker entry: dist/server/index.js" >&2
+[[ -f "${index}" ]] || {
+  echo "Missing static entry: dist/index.html" >&2
   exit 66
 }
-[[ -f "${hosting}" ]] || {
-  echo "Missing packaged Sites manifest: dist/.openai/hosting.json" >&2
+[[ -f "${nojekyll}" ]] || {
+  echo "Missing GitHub Pages marker: dist/.nojekyll" >&2
   exit 66
 }
-
-node --input-type=module - "${worker}" "${hosting}" <<'NODE'
-import { readFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
-
-const [workerPath, hostingPath] = process.argv.slice(2);
-JSON.parse(await readFile(hostingPath, "utf8"));
-
-const workerUrl = pathToFileURL(workerPath);
-workerUrl.searchParams.set("sites-validation", `${process.pid}-${Date.now()}`);
-const worker = await import(workerUrl.href);
-if (!worker.default || typeof worker.default.fetch !== "function") {
-  throw new Error("dist/server/index.js must have an ESM default export with fetch(request, env, ctx)");
+compgen -G "${project_root}/dist/assets/*.js" >/dev/null || {
+  echo "Missing bundled application JavaScript under dist/assets." >&2
+  exit 66
 }
-NODE
 
 "${script_dir}/verify-engine.sh" --packaged
 
-echo "Validated packaged app: Worker, hosting manifest, and verified engine artifact are present."
+echo "Validated static app: HTML, browser bundle, Pages marker, and verified engine artifact are present."

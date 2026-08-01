@@ -1,53 +1,32 @@
 import assert from "node:assert/strict";
+import { readFile, readdir } from "node:fs/promises";
 import test from "node:test";
 
-const developmentPreviewMeta =
-  /<meta(?=[^>]*\bname=["']codex-preview["'])(?=[^>]*\bcontent=["']development["'])[^>]*>/i;
+const distUrl = new URL("../dist/", import.meta.url);
+const appUrl = new URL("../src/App.tsx", import.meta.url);
 
-async function renderHome() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
+test("builds a relative-path static GitHub Pages entry", async () => {
+  const html = await readFile(new URL("index.html", distUrl), "utf8");
+  const assets = await readdir(new URL("assets/", distUrl));
 
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
-}
-
-test("renders development preview metadata", async () => {
-  const response = await renderHome();
-  assert.equal(response.status, 200);
-  assert.match(
-    response.headers.get("content-type") ?? "",
-    /^text\/html\b/i,
-  );
-  assert.match(await response.text(), developmentPreviewMeta);
+  assert.match(html, /<title>MolecularSetup — build chemistry by touch<\/title>/);
+  assert.match(html, /<div id="root"><\/div>/);
+  assert.match(html, /<script[^>]+src="\.\/assets\/[^"]+\.js"/);
+  assert.match(html, /<link[^>]+href="\.\/favicon\.svg"/);
+  assert.doesNotMatch(html, /codex-preview|_vinext|dist\/server/i);
+  assert.ok(assets.some((asset) => asset.endsWith(".js")));
 });
 
-test("renders the molecular canvas interaction contract", async () => {
-  const response = await renderHome();
-  const html = await response.text();
+test("preserves the molecular canvas interaction contract", async () => {
+  const source = await readFile(appUrl, "utf8");
 
-  assert.match(html, /class="molecular-canvas/);
-  assert.match(html, /aria-label="Molecules"/);
-  assert.match(html, /aria-label="Simulation controls"/);
-  assert.match(html, /Draw pressure boundary/);
-  assert.match(html, /Pause simulation/);
-  assert.match(html, /Hold to reset the world/);
-  assert.match(html, /aria-valuemax="1000"/);
-  assert.match(html, /H₂O/);
-  assert.match(html, /Na⁺/);
-  assert.match(html, /Cl⁻/);
-  assert.doesNotMatch(html, /dashboard|inspector|reaction recipe/i);
+  assert.match(source, /className={`molecular-canvas/);
+  assert.match(source, /aria-label="Molecules"/);
+  assert.match(source, /aria-label="Simulation controls"/);
+  assert.match(source, /Draw pressure boundary/);
+  assert.match(source, /Pause simulation/);
+  assert.match(source, /Hold to reset the world/);
+  assert.match(source, /aria-valuemax=\{1000\}/);
+  assert.match(source, /H₂O|SPECIES/);
+  assert.doesNotMatch(source, /dashboard|inspector|reaction recipe/i);
 });

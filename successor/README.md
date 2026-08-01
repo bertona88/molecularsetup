@@ -20,15 +20,18 @@ repository contracts at the project root.
 - responsive touch-first tray and accessible control labels.
 
 Rust owns particles, forces, randomness, integration, boundaries, accounting,
-and derived bond/event views. `app/page.tsx` is a presentation and gesture shell;
+and derived bond/event views. `src/App.tsx` is a presentation and gesture shell;
 `lib/molecular-world.ts` validates the ABI and consumes packed typed arrays. No
 JavaScript physics fallback exists.
+
+The application is completely static. Vite emits `dist/index.html`, browser
+assets, and the checked-in Wasm module. There is no Worker, server-rendering
+runtime, API route, database, object storage, or remote simulation service.
 
 ## Run
 
 ```sh
-npm run restore:lock
-npm install
+npm ci
 npm run dev
 ```
 
@@ -40,21 +43,27 @@ npm test
 ```
 
 The verified Wasm artifact is checked in, so normal development and application
-builds do not require Rust. To rebuild it, install Rust with the
-`wasm32-unknown-unknown` target, then run:
+builds do not require Rust. Rebuilds use the repository-pinned Rust 1.74.0
+toolchain and `wasm32-unknown-unknown` target, then run:
 
 ```sh
 npm run test:engine:native
 npm run engine:build
 ```
 
-`npm test` verifies source/artifact consistency, builds the application, and
-tests the rendered interaction contract, real Wasm ABI, deterministic replay,
-and browser/engine architecture boundary.
+`npm test` verifies source/artifact consistency, builds the static application,
+and tests the HTML entry, interaction contract, real Wasm ABI, deterministic
+replay, and browser/engine architecture boundary.
 
-The dependency lock is stored as small compressed parts so this branch can be
-published through the repository connector. `npm run restore:lock` reconstructs
-the exact lock file and verifies its SHA-256 before installation.
+## GitHub Pages
+
+The repository workflow builds and tests pull requests. A push to `main` also
+uploads `dist/` and deploys it through the protected `github-pages`
+environment. Asset paths are relative, so the same artifact works at the
+repository Pages path and later at `molecularsetup.com`.
+
+GitHub Pages must use **GitHub Actions** as its publishing source. A custom
+domain and DNS cutover are deliberately not encoded in this branch.
 
 ## Model status
 

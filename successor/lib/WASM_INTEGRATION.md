@@ -8,10 +8,13 @@ existing tray/thumbnail presentation data.
 The pipeline must serve the zero-import artifact at:
 
 ```text
-/engine/molecularsetup_engine.wasm
+./engine/molecularsetup_engine.wasm
 ```
 
-## Exact `app/page.tsx` changes
+The relative Vite base keeps this path valid both under the repository Pages
+subpath and at a future custom-domain root.
+
+## Exact `src/App.tsx` changes
 
 1. Import the catalog and adapter near the current React import:
 
