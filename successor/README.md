@@ -1,4 +1,4 @@
-# MolecularSetup canvas successor
+# MolecularSetup Rust/Wasm canvas successor
 
 This directory contains the greenfield browser prototype described by the
 repository contracts at the project root.
@@ -7,18 +7,22 @@ repository contracts at the project root.
 
 - full-viewport 2D canvas;
 - eight visual starting species;
-- logarithmic quantity selection from 1 to 1000 molecules;
+- detented nonlinear quantity selection from 1 to 1000 molecules, with every
+  integer available through native input and keyboard controls;
 - tap and drag spawning with bounded per-frame insertion;
-- fixed-step stochastic particle motion;
-- state-derived pair forces, charges, valence limits, bonds, and breaks;
+- a dependency-free Rust engine compiled to a zero-import WebAssembly module;
+- fixed-step velocity-Verlet or BAOAB Langevin integration;
+- continuous energy-derived pair forces and over-coordination cost;
+- fixed charges and continuous state-derived bond order, with no reaction or
+  product lookup table;
 - drawable rectangular boundaries and draggable piston walls;
 - temperature, pause, hold-to-reset, pan, wheel zoom, and pinch zoom;
 - responsive touch-first tray and accessible control labels.
 
-The reference numerical backend is embedded in `app/page.tsx` for this vertical
-slice. It is intentionally isolated behind browser interaction semantics that
-can be moved to a Rust/Wasm backend without preserving this heuristic model's
-outcomes.
+Rust owns particles, forces, randomness, integration, boundaries, accounting,
+and derived bond/event views. `app/page.tsx` is a presentation and gesture shell;
+`lib/molecular-world.ts` validates the ABI and consumes packed typed arrays. No
+JavaScript physics fallback exists.
 
 ## Run
 
@@ -35,8 +39,18 @@ npm run lint
 npm test
 ```
 
-`npm test` builds the Cloudflare Worker-compatible artifact and checks the
-server-rendered interaction contract.
+The verified Wasm artifact is checked in, so normal development and application
+builds do not require Rust. To rebuild it, install Rust with the
+`wasm32-unknown-unknown` target, then run:
+
+```sh
+npm run test:engine:native
+npm run engine:build
+```
+
+`npm test` verifies source/artifact consistency, builds the application, and
+tests the rendered interaction contract, real Wasm ABI, deterministic replay,
+and browser/engine architecture boundary.
 
 The dependency lock is stored as small compressed parts so this branch can be
 published through the repository connector. `npm run restore:lock` reconstructs
@@ -44,6 +58,8 @@ the exact lock file and verifies its SHA-256 before installation.
 
 ## Model status
 
-This is a qualitative 2D pedagogical model, not predictive chemistry. Read
-`../MOLECULAR_MODEL_CONTRACT.md` and `../CLAIMS_AND_VALIDATION.md` before
-changing model behavior or presenting results.
+This is a qualitative 2D pedagogical model, not predictive chemistry. Its
+starting structures are atom/geometry/charge presets; later motion and
+connectivity follow the continuous model without product recipes. Read
+`../MOLECULAR_MODEL_CONTRACT.md`, `engine/ENGINE_ABI.md`, and
+`../CLAIMS_AND_VALIDATION.md` before changing or presenting it.

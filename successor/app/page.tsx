@@ -10,99 +10,16 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
-
-type ElementKey = "H" | "C" | "N" | "O" | "Na" | "Cl";
-
-type ElementModel = {
-  color: string;
-  rim: string;
-  mass: number;
-  radius: number;
-  covalentRadius: number;
-  valence: number;
-  charge: number;
-  affinity: number;
-};
-
-type AtomSeed = {
-  element: ElementKey;
-  x: number;
-  y: number;
-  charge?: number;
-};
-
-type Species = {
-  id: string;
-  formula: string;
-  name: string;
-  atoms: AtomSeed[];
-  bonds: [number, number][];
-  defaultQuantity: number;
-};
-
-type Atom = {
-  id: number;
-  element: ElementKey;
-  x: number;
-  y: number;
-  previousX: number;
-  previousY: number;
-  vx: number;
-  vy: number;
-  fx: number;
-  fy: number;
-  charge: number;
-  age: number;
-  containerId: number | null;
-  bonded: Set<number>;
-};
-
-type Bond = {
-  id: number;
-  a: number;
-  b: number;
-  rest: number;
-  energy: number;
-  order: number;
-  previousOrder: number;
-  age: number;
-  strain: number;
-};
-
-type Boundary = {
-  id: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  impact: number;
-  selected: boolean;
-};
-
-type Camera = {
-  x: number;
-  y: number;
-  zoom: number;
-};
-
-type SpawnJob = {
-  species: Species;
-  remaining: number;
-  total: number;
-  placed: number;
-  x: number;
-  y: number;
-  seedAngle: number;
-};
-
-type BoundaryDraft = {
-  startX: number;
-  startY: number;
-  endX: number;
-  endY: number;
-};
-
-type BoundaryEdge = "left" | "right" | "top" | "bottom";
+import {
+  ELEMENTS,
+  SPECIES,
+  type Species,
+} from "@/lib/molecular-catalog";
+import {
+  MolecularWorld,
+  type BoundaryDraft,
+  type BoundaryEdge,
+} from "@/lib/molecular-world";
 
 type CanvasGesture =
   | {
@@ -127,6 +44,8 @@ type CanvasGesture =
 type DragGhost = {
   species: Species;
   quantity: number;
+  startX: number;
+  startY: number;
   x: number;
   y: number;
   active: boolean;
@@ -139,180 +58,6 @@ type PinchGesture = {
   anchorY: number;
 };
 
-const ELEMENTS: Record<ElementKey, ElementModel> = {
-  H: {
-    color: "#F7F2E8",
-    rim: "#B8CAD8",
-    mass: 1,
-    radius: 7,
-    covalentRadius: 8,
-    valence: 1,
-    charge: 0,
-    affinity: 1,
-  },
-  C: {
-    color: "#3F536B",
-    rim: "#9DB3C7",
-    mass: 12,
-    radius: 11,
-    covalentRadius: 11,
-    valence: 4,
-    charge: 0,
-    affinity: 1.65,
-  },
-  N: {
-    color: "#6D7DFF",
-    rim: "#ABB5FF",
-    mass: 14,
-    radius: 10.5,
-    covalentRadius: 10,
-    valence: 3,
-    charge: 0,
-    affinity: 1.45,
-  },
-  O: {
-    color: "#FF626B",
-    rim: "#FFB1B5",
-    mass: 16,
-    radius: 10,
-    covalentRadius: 9,
-    valence: 2,
-    charge: 0,
-    affinity: 1.55,
-  },
-  Na: {
-    color: "#AE78FF",
-    rim: "#D9C2FF",
-    mass: 23,
-    radius: 13,
-    covalentRadius: 12,
-    valence: 1,
-    charge: 1,
-    affinity: 0.75,
-  },
-  Cl: {
-    color: "#63DE8A",
-    rim: "#B7F4CA",
-    mass: 35.5,
-    radius: 14,
-    covalentRadius: 12,
-    valence: 1,
-    charge: -1,
-    affinity: 1.15,
-  },
-};
-
-const SPECIES: Species[] = [
-  {
-    id: "water",
-    formula: "H₂O",
-    name: "Water",
-    atoms: [
-      { element: "O", x: 0, y: 0, charge: -0.66 },
-      { element: "H", x: -13, y: 11, charge: 0.33 },
-      { element: "H", x: 13, y: 11, charge: 0.33 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-    ],
-    defaultQuantity: 18,
-  },
-  {
-    id: "hydrogen",
-    formula: "H₂",
-    name: "Hydrogen",
-    atoms: [
-      { element: "H", x: -8, y: 0 },
-      { element: "H", x: 8, y: 0 },
-    ],
-    bonds: [[0, 1]],
-    defaultQuantity: 24,
-  },
-  {
-    id: "oxygen",
-    formula: "O₂",
-    name: "Oxygen",
-    atoms: [
-      { element: "O", x: -10, y: 0 },
-      { element: "O", x: 10, y: 0 },
-    ],
-    bonds: [[0, 1]],
-    defaultQuantity: 12,
-  },
-  {
-    id: "methane",
-    formula: "CH₄",
-    name: "Methane",
-    atoms: [
-      { element: "C", x: 0, y: 0 },
-      { element: "H", x: -17, y: 0 },
-      { element: "H", x: 17, y: 0 },
-      { element: "H", x: 0, y: -17 },
-      { element: "H", x: 0, y: 17 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-      [0, 3],
-      [0, 4],
-    ],
-    defaultQuantity: 6,
-  },
-  {
-    id: "ammonia",
-    formula: "NH₃",
-    name: "Ammonia",
-    atoms: [
-      { element: "N", x: 0, y: 0, charge: -0.45 },
-      { element: "H", x: -15, y: 8, charge: 0.15 },
-      { element: "H", x: 15, y: 8, charge: 0.15 },
-      { element: "H", x: 0, y: -16, charge: 0.15 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-      [0, 3],
-    ],
-    defaultQuantity: 8,
-  },
-  {
-    id: "carbon-dioxide",
-    formula: "CO₂",
-    name: "Carbon dioxide",
-    atoms: [
-      { element: "C", x: 0, y: 0, charge: 0.5 },
-      { element: "O", x: -19, y: 0, charge: -0.25 },
-      { element: "O", x: 19, y: 0, charge: -0.25 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-    ],
-    defaultQuantity: 10,
-  },
-  {
-    id: "sodium",
-    formula: "Na⁺",
-    name: "Sodium ion",
-    atoms: [{ element: "Na", x: 0, y: 0, charge: 1 }],
-    bonds: [],
-    defaultQuantity: 16,
-  },
-  {
-    id: "chloride",
-    formula: "Cl⁻",
-    name: "Chloride ion",
-    atoms: [{ element: "Cl", x: 0, y: 0, charge: -1 }],
-    bonds: [],
-    defaultQuantity: 16,
-  },
-];
-
-const MAX_ATOMS = 18_000;
-const FIXED_STEP = 1 / 120;
-const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
-
 const clamp = (value: number, min: number, max: number) =>
   Math.min(max, Math.max(min, value));
 
@@ -324,775 +69,6 @@ const sliderFromQuantity = (quantity: number) =>
 
 const distance = (x1: number, y1: number, x2: number, y2: number) =>
   Math.hypot(x2 - x1, y2 - y1);
-
-const roundedRectPath = (
-  context: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number,
-) => {
-  const safeRadius = Math.min(radius, width / 2, height / 2);
-  context.beginPath();
-  context.moveTo(x + safeRadius, y);
-  context.lineTo(x + width - safeRadius, y);
-  context.quadraticCurveTo(x + width, y, x + width, y + safeRadius);
-  context.lineTo(x + width, y + height - safeRadius);
-  context.quadraticCurveTo(
-    x + width,
-    y + height,
-    x + width - safeRadius,
-    y + height,
-  );
-  context.lineTo(x + safeRadius, y + height);
-  context.quadraticCurveTo(x, y + height, x, y + height - safeRadius);
-  context.lineTo(x, y + safeRadius);
-  context.quadraticCurveTo(x, y, x + safeRadius, y);
-  context.closePath();
-};
-
-const createRandom = (seed: number) => {
-  let state = seed >>> 0;
-  return () => {
-    state += 0x6d2b79f5;
-    let value = state;
-    value = Math.imul(value ^ (value >>> 15), value | 1);
-    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
-    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
-  };
-};
-
-class MolecularWorld {
-  atoms: Atom[] = [];
-  bonds: Bond[] = [];
-  boundaries: Boundary[] = [];
-  spawnQueue: SpawnJob[] = [];
-  camera: Camera = { x: 0, y: 0, zoom: 1 };
-  temperature = 0.36;
-  playing = true;
-  viewportWidth = 1000;
-  viewportHeight = 700;
-  private nextAtomId = 1;
-  private nextBondId = 1;
-  private nextBoundaryId = 1;
-  private random = createRandom(0x4d4f4c45);
-  private gaussianSpare: number | null = null;
-  private bondLookup = new Set<string>();
-
-  setViewport(width: number, height: number) {
-    this.viewportWidth = width;
-    this.viewportHeight = height;
-  }
-
-  screenToWorld(screenX: number, screenY: number) {
-    return {
-      x:
-        (screenX - this.viewportWidth / 2) / this.camera.zoom + this.camera.x,
-      y:
-        (screenY - this.viewportHeight / 2) / this.camera.zoom + this.camera.y,
-    };
-  }
-
-  worldToScreen(worldX: number, worldY: number) {
-    return {
-      x:
-        (worldX - this.camera.x) * this.camera.zoom + this.viewportWidth / 2,
-      y:
-        (worldY - this.camera.y) * this.camera.zoom + this.viewportHeight / 2,
-    };
-  }
-
-  setTemperature(value: number) {
-    this.temperature = clamp(value, 0, 1);
-  }
-
-  enqueueSpawn(species: Species, count: number, x: number, y: number) {
-    this.spawnQueue.push({
-      species,
-      remaining: count,
-      total: count,
-      placed: 0,
-      x,
-      y,
-      seedAngle: this.random() * Math.PI * 2,
-    });
-  }
-
-  flushSpawnQueue() {
-    let frameBudget = this.atoms.length > 7_000 ? 90 : 220;
-    while (frameBudget > 0 && this.spawnQueue.length > 0) {
-      const job = this.spawnQueue[0];
-      if (this.atoms.length + job.species.atoms.length > MAX_ATOMS) {
-        this.spawnQueue.shift();
-        continue;
-      }
-
-      const moleculeArea = job.species.atoms.length * 360;
-      const diskRadius = Math.max(
-        18,
-        Math.sqrt((job.total * moleculeArea) / (Math.PI * 0.24)),
-      );
-      const normalized = Math.sqrt((job.placed + 0.5) / Math.max(1, job.total));
-      const angle = job.seedAngle + job.placed * GOLDEN_ANGLE;
-      const jitter = 0.78 + this.random() * 0.22;
-      const centerX = job.x + Math.cos(angle) * diskRadius * normalized * jitter;
-      const centerY = job.y + Math.sin(angle) * diskRadius * normalized * jitter;
-      this.addMolecule(job.species, centerX, centerY, this.random() * Math.PI * 2);
-
-      job.placed += 1;
-      job.remaining -= 1;
-      frameBudget -= 1;
-      if (job.remaining <= 0) {
-        this.spawnQueue.shift();
-      }
-    }
-  }
-
-  private normalRandom() {
-    if (this.gaussianSpare !== null) {
-      const value = this.gaussianSpare;
-      this.gaussianSpare = null;
-      return value;
-    }
-    const u = Math.max(1e-8, this.random());
-    const v = this.random();
-    const magnitude = Math.sqrt(-2 * Math.log(u));
-    this.gaussianSpare = magnitude * Math.sin(Math.PI * 2 * v);
-    return magnitude * Math.cos(Math.PI * 2 * v);
-  }
-
-  private thermalSpeed(mass: number) {
-    const reducedTemperature = 0.025 * 58 ** this.temperature;
-    return 24 * Math.sqrt(reducedTemperature / Math.sqrt(mass));
-  }
-
-  private addMolecule(
-    species: Species,
-    centerX: number,
-    centerY: number,
-    rotation: number,
-  ) {
-    const cos = Math.cos(rotation);
-    const sin = Math.sin(rotation);
-    const indices: number[] = [];
-    const container = this.boundaries.find(
-      (boundary) =>
-        centerX > boundary.x &&
-        centerX < boundary.x + boundary.width &&
-        centerY > boundary.y &&
-        centerY < boundary.y + boundary.height,
-    );
-
-    for (const seed of species.atoms) {
-      const model = ELEMENTS[seed.element];
-      const x = centerX + seed.x * cos - seed.y * sin;
-      const y = centerY + seed.x * sin + seed.y * cos;
-      const speed = this.thermalSpeed(model.mass);
-      const atom: Atom = {
-        id: this.nextAtomId++,
-        element: seed.element,
-        x,
-        y,
-        previousX: x,
-        previousY: y,
-        vx: this.normalRandom() * speed,
-        vy: this.normalRandom() * speed,
-        fx: 0,
-        fy: 0,
-        charge: seed.charge ?? model.charge,
-        age: 0,
-        containerId: container?.id ?? null,
-        bonded: new Set(),
-      };
-      indices.push(this.atoms.length);
-      this.atoms.push(atom);
-    }
-
-    for (const [localA, localB] of species.bonds) {
-      this.addBond(indices[localA], indices[localB], true);
-    }
-  }
-
-  private pairKey(a: number, b: number) {
-    return a < b ? `${a}:${b}` : `${b}:${a}`;
-  }
-
-  private addBond(aIndex: number, bIndex: number, seeded = false) {
-    const a = this.atoms[aIndex];
-    const b = this.atoms[bIndex];
-    if (!a || !b || a.bonded.has(b.id)) return;
-    const modelA = ELEMENTS[a.element];
-    const modelB = ELEMENTS[b.element];
-    const rest = seeded
-      ? distance(a.x, a.y, b.x, b.y)
-      : (modelA.covalentRadius + modelB.covalentRadius) * 0.94;
-    const energy = Math.sqrt(modelA.affinity * modelB.affinity);
-    const bond: Bond = {
-      id: this.nextBondId++,
-      a: aIndex,
-      b: bIndex,
-      rest,
-      energy,
-      order: seeded ? 1 : 0.36,
-      previousOrder: seeded ? 1 : 0,
-      age: 0,
-      strain: 0,
-    };
-    this.bonds.push(bond);
-    a.bonded.add(b.id);
-    b.bonded.add(a.id);
-    this.bondLookup.add(this.pairKey(a.id, b.id));
-  }
-
-  private removeBond(index: number) {
-    const bond = this.bonds[index];
-    const a = this.atoms[bond.a];
-    const b = this.atoms[bond.b];
-    if (a && b) {
-      a.bonded.delete(b.id);
-      b.bonded.delete(a.id);
-      this.bondLookup.delete(this.pairKey(a.id, b.id));
-    }
-    this.bonds.splice(index, 1);
-  }
-
-  private canBond(a: Atom, b: Atom) {
-    const modelA = ELEMENTS[a.element];
-    const modelB = ELEMENTS[b.element];
-    return (
-      a.bonded.size < modelA.valence &&
-      b.bonded.size < modelB.valence &&
-      !this.bondLookup.has(this.pairKey(a.id, b.id))
-    );
-  }
-
-  private computeForces() {
-    for (const atom of this.atoms) {
-      atom.fx = 0;
-      atom.fy = 0;
-    }
-
-    const cellSize = 48;
-    const grid = new Map<string, number[]>();
-    for (let index = 0; index < this.atoms.length; index += 1) {
-      const atom = this.atoms[index];
-      const cellX = Math.floor(atom.x / cellSize);
-      const cellY = Math.floor(atom.y / cellSize);
-      const key = `${cellX},${cellY}`;
-      const bucket = grid.get(key);
-      if (bucket) bucket.push(index);
-      else grid.set(key, [index]);
-    }
-
-    const candidates: [number, number][] = [];
-    for (let aIndex = 0; aIndex < this.atoms.length; aIndex += 1) {
-      const a = this.atoms[aIndex];
-      const modelA = ELEMENTS[a.element];
-      const cellX = Math.floor(a.x / cellSize);
-      const cellY = Math.floor(a.y / cellSize);
-
-      for (let offsetX = -1; offsetX <= 1; offsetX += 1) {
-        for (let offsetY = -1; offsetY <= 1; offsetY += 1) {
-          const bucket = grid.get(`${cellX + offsetX},${cellY + offsetY}`);
-          if (!bucket) continue;
-          for (const bIndex of bucket) {
-            if (bIndex <= aIndex) continue;
-            const b = this.atoms[bIndex];
-            const modelB = ELEMENTS[b.element];
-            const dx = b.x - a.x;
-            const dy = b.y - a.y;
-            const distanceSquared = dx * dx + dy * dy;
-            const cutoff = Math.min(
-              47,
-              (modelA.radius + modelB.radius) * 2.35,
-            );
-            if (distanceSquared <= 0.0001 || distanceSquared > cutoff * cutoff) {
-              continue;
-            }
-
-            const separation = Math.sqrt(distanceSquared);
-            const nx = dx / separation;
-            const ny = dy / separation;
-            const minimum = (modelA.radius + modelB.radius) * 0.92;
-            const warmup = Math.min(1, a.age / 0.24, b.age / 0.24);
-            let pairForce = 0;
-
-            if (separation < minimum) {
-              const overlap = minimum - separation;
-              pairForce -= Math.min(260, overlap * 34) * warmup;
-            } else if (!a.bonded.has(b.id)) {
-              const reach = cutoff - minimum;
-              const normalized = clamp((separation - minimum) / reach, 0, 1);
-              pairForce += Math.sin(normalized * Math.PI) * 1.4 * warmup;
-            }
-
-            if (a.charge !== 0 && b.charge !== 0) {
-              const screened = -a.charge * b.charge * 1250;
-              pairForce +=
-                (screened / (distanceSquared + 150)) *
-                Math.exp(-separation / 110) *
-                warmup;
-            }
-
-            a.fx += nx * pairForce;
-            a.fy += ny * pairForce;
-            b.fx -= nx * pairForce;
-            b.fy -= ny * pairForce;
-
-            const capture =
-              (modelA.covalentRadius + modelB.covalentRadius) * 1.16;
-            if (
-              separation < capture &&
-              this.canBond(a, b) &&
-              candidates.length < 96
-            ) {
-              const relativeSpeed = Math.hypot(a.vx - b.vx, a.vy - b.vy);
-              const captureSpeed =
-                76 * Math.sqrt(modelA.affinity * modelB.affinity);
-              if (relativeSpeed < captureSpeed) {
-                candidates.push([aIndex, bIndex]);
-              }
-            }
-          }
-        }
-      }
-    }
-
-    for (const bond of this.bonds) {
-      const a = this.atoms[bond.a];
-      const b = this.atoms[bond.b];
-      if (!a || !b) continue;
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const separation = Math.max(0.001, Math.hypot(dx, dy));
-      const stretch = separation - bond.rest;
-      const normalizedStretch = Math.abs(stretch) / Math.max(1, bond.rest);
-      const spring = clamp(stretch * (18 + bond.energy * 18), -240, 240);
-      const nx = dx / separation;
-      const ny = dy / separation;
-      a.fx += nx * spring;
-      a.fy += ny * spring;
-      b.fx -= nx * spring;
-      b.fy -= ny * spring;
-      bond.previousOrder = bond.order;
-      bond.order = clamp(
-        1 - normalizedStretch / (0.82 + bond.energy * 0.1),
-        0,
-        1,
-      );
-      bond.strain = normalizedStretch;
-    }
-
-    for (const [aIndex, bIndex] of candidates) {
-      const a = this.atoms[aIndex];
-      const b = this.atoms[bIndex];
-      if (a && b && this.canBond(a, b)) this.addBond(aIndex, bIndex);
-    }
-  }
-
-  private applyBoundaries(atom: Atom) {
-    if (atom.containerId === null) return;
-    const boundary = this.boundaries.find(
-      (candidate) => candidate.id === atom.containerId,
-    );
-    if (!boundary) {
-      atom.containerId = null;
-      return;
-    }
-
-    const radius = ELEMENTS[atom.element].radius;
-    const left = boundary.x + radius;
-    const right = boundary.x + boundary.width - radius;
-    const top = boundary.y + radius;
-    const bottom = boundary.y + boundary.height - radius;
-    let impulse = 0;
-
-    if (atom.x < left) {
-      impulse += Math.abs(atom.vx);
-      atom.x = left;
-      atom.vx = Math.abs(atom.vx) * 0.42;
-    } else if (atom.x > right) {
-      impulse += Math.abs(atom.vx);
-      atom.x = right;
-      atom.vx = -Math.abs(atom.vx) * 0.42;
-    }
-
-    if (atom.y < top) {
-      impulse += Math.abs(atom.vy);
-      atom.y = top;
-      atom.vy = Math.abs(atom.vy) * 0.42;
-    } else if (atom.y > bottom) {
-      impulse += Math.abs(atom.vy);
-      atom.y = bottom;
-      atom.vy = -Math.abs(atom.vy) * 0.42;
-    }
-
-    if (impulse > 0) {
-      boundary.impact = Math.min(1, boundary.impact + impulse / 240);
-    }
-  }
-
-  step(dt: number) {
-    if (!this.playing) return;
-    this.computeForces();
-    const thermostat = 1 - Math.exp(-1.4 * dt);
-
-    for (const atom of this.atoms) {
-      const model = ELEMENTS[atom.element];
-      atom.previousX = atom.x;
-      atom.previousY = atom.y;
-      atom.vx += (atom.fx / Math.sqrt(model.mass)) * dt * 11;
-      atom.vy += (atom.fy / Math.sqrt(model.mass)) * dt * 11;
-
-      const targetSpeed = this.thermalSpeed(model.mass);
-      atom.vx +=
-        (this.normalRandom() * targetSpeed - atom.vx) * thermostat * 0.28;
-      atom.vy +=
-        (this.normalRandom() * targetSpeed - atom.vy) * thermostat * 0.28;
-
-      const speed = Math.hypot(atom.vx, atom.vy);
-      if (speed > 280) {
-        const scale = 280 / speed;
-        atom.vx *= scale;
-        atom.vy *= scale;
-      }
-
-      atom.x += atom.vx * dt;
-      atom.y += atom.vy * dt;
-      atom.age += dt;
-      this.applyBoundaries(atom);
-    }
-
-    for (let index = this.bonds.length - 1; index >= 0; index -= 1) {
-      const bond = this.bonds[index];
-      bond.age += dt;
-      const breakStretch = 1.7 + bond.energy * 0.24;
-      if (
-        bond.age > 0.22 &&
-        (bond.strain > breakStretch || bond.order < 0.035)
-      ) {
-        this.removeBond(index);
-      }
-    }
-
-    for (const boundary of this.boundaries) {
-      boundary.impact *= 0.91;
-    }
-  }
-
-  addBoundary(draft: BoundaryDraft) {
-    const x = Math.min(draft.startX, draft.endX);
-    const y = Math.min(draft.startY, draft.endY);
-    const width = Math.abs(draft.endX - draft.startX);
-    const height = Math.abs(draft.endY - draft.startY);
-    if (width < 96 / this.camera.zoom || height < 96 / this.camera.zoom) {
-      return null;
-    }
-    for (const boundary of this.boundaries) boundary.selected = false;
-    const boundary: Boundary = {
-      id: this.nextBoundaryId++,
-      x,
-      y,
-      width,
-      height,
-      impact: 0,
-      selected: true,
-    };
-    this.boundaries.push(boundary);
-    for (const atom of this.atoms) {
-      if (
-        atom.containerId === null &&
-        atom.x > x &&
-        atom.x < x + width &&
-        atom.y > y &&
-        atom.y < y + height
-      ) {
-        atom.containerId = boundary.id;
-      }
-    }
-    return boundary;
-  }
-
-  selectBoundaryAt(worldX: number, worldY: number) {
-    const tolerance = 18 / this.camera.zoom;
-    let hit: { boundary: Boundary; edge: BoundaryEdge } | null = null;
-
-    for (let index = this.boundaries.length - 1; index >= 0; index -= 1) {
-      const boundary = this.boundaries[index];
-      const withinHorizontal =
-        worldX >= boundary.x - tolerance &&
-        worldX <= boundary.x + boundary.width + tolerance;
-      const withinVertical =
-        worldY >= boundary.y - tolerance &&
-        worldY <= boundary.y + boundary.height + tolerance;
-      const candidates: [BoundaryEdge, number][] = [
-        ["left", Math.abs(worldX - boundary.x)],
-        ["right", Math.abs(worldX - (boundary.x + boundary.width))],
-        ["top", Math.abs(worldY - boundary.y)],
-        ["bottom", Math.abs(worldY - (boundary.y + boundary.height))],
-      ];
-      candidates.sort((first, second) => first[1] - second[1]);
-      const edge = candidates[0];
-      const edgeEligible =
-        (edge[0] === "left" || edge[0] === "right"
-          ? withinVertical
-          : withinHorizontal) && edge[1] <= tolerance;
-      if (edgeEligible) {
-        hit = { boundary, edge: edge[0] };
-        break;
-      }
-    }
-
-    for (const boundary of this.boundaries) {
-      boundary.selected = boundary.id === hit?.boundary.id;
-    }
-    return hit;
-  }
-
-  resizeBoundary(
-    boundaryId: number,
-    edge: BoundaryEdge,
-    worldX: number,
-    worldY: number,
-  ) {
-    const boundary = this.boundaries.find(
-      (candidate) => candidate.id === boundaryId,
-    );
-    if (!boundary) return;
-    const minimum = 96 / this.camera.zoom;
-    if (edge === "left") {
-      const next = Math.min(worldX, boundary.x + boundary.width - minimum);
-      boundary.width += boundary.x - next;
-      boundary.x = next;
-    } else if (edge === "right") {
-      boundary.width = Math.max(minimum, worldX - boundary.x);
-    } else if (edge === "top") {
-      const next = Math.min(worldY, boundary.y + boundary.height - minimum);
-      boundary.height += boundary.y - next;
-      boundary.y = next;
-    } else {
-      boundary.height = Math.max(minimum, worldY - boundary.y);
-    }
-
-    for (const atom of this.atoms) {
-      if (atom.containerId !== boundary.id) continue;
-      const radius = ELEMENTS[atom.element].radius;
-      atom.x = clamp(
-        atom.x,
-        boundary.x + radius,
-        boundary.x + boundary.width - radius,
-      );
-      atom.y = clamp(
-        atom.y,
-        boundary.y + radius,
-        boundary.y + boundary.height - radius,
-      );
-      atom.previousX = atom.x;
-      atom.previousY = atom.y;
-    }
-  }
-
-  removeSelectedBoundary() {
-    const selected = this.boundaries.find((boundary) => boundary.selected);
-    if (!selected) return;
-    for (const atom of this.atoms) {
-      if (atom.containerId === selected.id) atom.containerId = null;
-    }
-    this.boundaries = this.boundaries.filter(
-      (boundary) => boundary.id !== selected.id,
-    );
-  }
-
-  reset() {
-    this.atoms = [];
-    this.bonds = [];
-    this.boundaries = [];
-    this.spawnQueue = [];
-    this.camera = { x: 0, y: 0, zoom: 1 };
-    this.temperature = 0.36;
-    this.playing = true;
-    this.nextAtomId = 1;
-    this.nextBondId = 1;
-    this.nextBoundaryId = 1;
-    this.random = createRandom(0x4d4f4c45);
-    this.gaussianSpare = null;
-    this.bondLookup.clear();
-  }
-
-  render(
-    context: CanvasRenderingContext2D,
-    reducedMotion: boolean,
-    draft: BoundaryDraft | null,
-  ) {
-    const width = this.viewportWidth;
-    const height = this.viewportHeight;
-    context.clearRect(0, 0, width, height);
-
-    const gridSize = 42 * this.camera.zoom;
-    if (gridSize > 13) {
-      const offsetX =
-        ((-this.camera.x * this.camera.zoom + width / 2) % gridSize) - gridSize;
-      const offsetY =
-        ((-this.camera.y * this.camera.zoom + height / 2) % gridSize) - gridSize;
-      context.fillStyle = "rgba(152, 210, 232, 0.075)";
-      for (let x = offsetX; x < width + gridSize; x += gridSize) {
-        for (let y = offsetY; y < height + gridSize; y += gridSize) {
-          context.beginPath();
-          context.arc(x, y, 1, 0, Math.PI * 2);
-          context.fill();
-        }
-      }
-    }
-
-    context.lineCap = "round";
-    for (const bond of this.bonds) {
-      const a = this.atoms[bond.a];
-      const b = this.atoms[bond.b];
-      if (!a || !b || bond.order < 0.06) continue;
-      const start = this.worldToScreen(a.x, a.y);
-      const end = this.worldToScreen(b.x, b.y);
-      if (
-        Math.max(start.x, end.x) < -40 ||
-        Math.min(start.x, end.x) > width + 40 ||
-        Math.max(start.y, end.y) < -40 ||
-        Math.min(start.y, end.y) > height + 40
-      ) {
-        continue;
-      }
-      const strained = clamp(bond.strain / 0.75, 0, 1);
-      const red = Math.round(124 + strained * 131);
-      const green = Math.round(204 - strained * 94);
-      const blue = Math.round(218 - strained * 80);
-      context.strokeStyle = `rgba(${red}, ${green}, ${blue}, ${0.26 + bond.order * 0.52})`;
-      context.lineWidth = clamp(
-        (2.4 + bond.order * 4.4) * this.camera.zoom,
-        1.2,
-        8,
-      );
-      context.beginPath();
-      context.moveTo(start.x, start.y);
-      context.lineTo(end.x, end.y);
-      context.stroke();
-
-      if (
-        !reducedMotion &&
-        bond.age < 0.2 &&
-        bond.order - bond.previousOrder > 0.05
-      ) {
-        const progress = bond.age / 0.2;
-        context.strokeStyle = `rgba(124, 235, 255, ${1 - progress})`;
-        context.lineWidth = 1.5;
-        context.beginPath();
-        context.arc(
-          (start.x + end.x) / 2,
-          (start.y + end.y) / 2,
-          7 + progress * 18,
-          0,
-          Math.PI * 2,
-        );
-        context.stroke();
-      }
-    }
-
-    const detailedAtoms = this.atoms.length < 3_200;
-    for (const atom of this.atoms) {
-      const screen = this.worldToScreen(atom.x, atom.y);
-      const model = ELEMENTS[atom.element];
-      const radius = clamp(model.radius * this.camera.zoom, 2.2, 24);
-      if (
-        screen.x + radius < 0 ||
-        screen.x - radius > width ||
-        screen.y + radius < 0 ||
-        screen.y - radius > height
-      ) {
-        continue;
-      }
-
-      context.fillStyle = model.rim;
-      context.beginPath();
-      context.arc(screen.x, screen.y, radius + 1.25, 0, Math.PI * 2);
-      context.fill();
-      context.fillStyle = model.color;
-      context.beginPath();
-      context.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
-      context.fill();
-
-      if (detailedAtoms) {
-        context.fillStyle =
-          atom.element === "H"
-            ? "rgba(255,255,255,.82)"
-            : "rgba(255,255,255,.34)";
-        context.beginPath();
-        context.arc(
-          screen.x - radius * 0.32,
-          screen.y - radius * 0.34,
-          Math.max(1.1, radius * 0.22),
-          0,
-          Math.PI * 2,
-        );
-        context.fill();
-      }
-    }
-
-    for (const boundary of this.boundaries) {
-      const screen = this.worldToScreen(boundary.x, boundary.y);
-      const lineWidth = 4.5 + boundary.impact * 5;
-      const glow = 0.36 + boundary.impact * 0.52;
-      context.save();
-      context.strokeStyle = boundary.selected
-        ? "rgba(255, 199, 99, .96)"
-        : `rgba(133, 226, 255, ${glow})`;
-      context.lineWidth = lineWidth;
-      context.shadowColor = boundary.selected
-        ? "rgba(255, 185, 70, .68)"
-        : "rgba(91, 211, 255, .7)";
-      context.shadowBlur = 12 + boundary.impact * 22;
-      roundedRectPath(
-        context,
-        screen.x,
-        screen.y,
-        boundary.width * this.camera.zoom,
-        boundary.height * this.camera.zoom,
-        16 * this.camera.zoom,
-      );
-      context.stroke();
-      context.restore();
-
-      if (boundary.selected) {
-        const x2 = screen.x + boundary.width * this.camera.zoom;
-        const y2 = screen.y + boundary.height * this.camera.zoom;
-        context.fillStyle = "#FFD071";
-        for (const [x, y] of [
-          [screen.x, screen.y + (y2 - screen.y) / 2],
-          [x2, screen.y + (y2 - screen.y) / 2],
-          [screen.x + (x2 - screen.x) / 2, screen.y],
-          [screen.x + (x2 - screen.x) / 2, y2],
-        ]) {
-          context.beginPath();
-          context.arc(x, y, 5.5, 0, Math.PI * 2);
-          context.fill();
-        }
-      }
-    }
-
-    if (draft) {
-      const start = this.worldToScreen(draft.startX, draft.startY);
-      const end = this.worldToScreen(draft.endX, draft.endY);
-      const x = Math.min(start.x, end.x);
-      const y = Math.min(start.y, end.y);
-      const draftWidth = Math.abs(end.x - start.x);
-      const draftHeight = Math.abs(end.y - start.y);
-      context.save();
-      context.setLineDash([9, 8]);
-      context.strokeStyle = "rgba(255, 205, 112, .95)";
-      context.lineWidth = 3;
-      roundedRectPath(context, x, y, draftWidth, draftHeight, 16);
-      context.stroke();
-      context.restore();
-    }
-  }
-}
 
 function MoleculeThumbnail({ species }: { species: Species }) {
   const points = species.atoms.map((atom) => ({
@@ -1239,20 +215,24 @@ export default function Home() {
   const updateSummary = useCallback(() => {
     const world = worldRef.current;
     if (!world) return;
-    const counts = new Map<ElementKey, number>();
-    for (const atom of world.atoms) {
-      counts.set(atom.element, (counts.get(atom.element) ?? 0) + 1);
-    }
-    const atomSummary =
-      world.atoms.length === 0
-        ? "Empty world"
-        : `${world.atoms.length} atoms: ${Array.from(counts.entries())
-            .map(([element, count]) => `${count} ${element}`)
-            .join(", ")}`;
-    setWorldSummary(
-      `${atomSummary}. ${world.playing ? "Simulation playing" : "Simulation paused"}. ${world.boundaries.length} boundaries.`,
-    );
+    setWorldSummary(world.summary());
   }, []);
+
+  const issueWorldCommand = useCallback(
+    <Result,>(
+      command: (world: MolecularWorld) => Result,
+    ): Result | undefined => {
+      const world = worldRef.current;
+      if (!world || world.status === "error") return undefined;
+      try {
+        return command(world);
+      } catch {
+        setWorldSummary(world.summary());
+        return undefined;
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -1260,6 +240,10 @@ export default function Home() {
     if (!canvas || !world) return;
     const context = canvas.getContext("2d", { alpha: true });
     if (!context) return;
+
+    void world.initialize().catch(() => {
+      setWorldSummary(world.summary());
+    });
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -1274,24 +258,18 @@ export default function Home() {
     resizeObserver.observe(canvas);
 
     let previous = performance.now();
-    let accumulator = 0;
     let summaryClock = 0;
     const frame = (now: number) => {
-      const elapsed = Math.min(0.05, (now - previous) / 1000);
+      const elapsedMilliseconds = Math.min(50, now - previous);
       previous = now;
-      world.flushSpawnQueue();
-      if (world.playing) {
-        accumulator += elapsed;
-        let steps = 0;
-        while (accumulator >= FIXED_STEP && steps < 5) {
-          world.step(FIXED_STEP);
-          accumulator -= FIXED_STEP;
-          steps += 1;
+      issueWorldCommand((activeWorld) => {
+        activeWorld.flushSpawnQueue();
+        if (activeWorld.playing) {
+          activeWorld.advance(elapsedMilliseconds);
         }
-        if (steps === 5) accumulator = 0;
-      }
+      });
       world.render(context, reducedMotion, draftRef.current);
-      summaryClock += elapsed;
+      summaryClock += elapsedMilliseconds / 1000;
       if (summaryClock > 0.7) {
         updateSummary();
         summaryClock = 0;
@@ -1306,7 +284,7 @@ export default function Home() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [reducedMotion, updateSummary]);
+  }, [issueWorldCommand, reducedMotion, updateSummary]);
 
   const spawnAt = useCallback(
     (species: Species, quantity: number, clientX?: number, clientY?: number) => {
@@ -1319,12 +297,16 @@ export default function Home() {
       const localY =
         clientY === undefined ? rect.height * 0.5 : clientY - rect.top;
       const point = world.screenToWorld(localX, localY);
-      world.enqueueSpawn(species, quantity, point.x, point.y);
+      const issued = issueWorldCommand((activeWorld) => {
+        activeWorld.enqueueSpawn(species, quantity, point.x, point.y);
+        return true;
+      });
+      if (!issued) return;
       setWorldSummary(
         `Adding ${quantity} ${species.name} ${quantity === 1 ? "molecule" : "molecules"}.`,
       );
     },
-    [],
+    [issueWorldCommand],
   );
 
   const beginMoleculeDrag = (
@@ -1336,6 +318,8 @@ export default function Home() {
     const nextGhost = {
       species,
       quantity: quantities[species.id],
+      startX: event.clientX,
+      startY: event.clientY,
       x: event.clientX,
       y: event.clientY,
       active: false,
@@ -1350,7 +334,12 @@ export default function Home() {
   ) => {
     const current = moleculeDragRef.current;
     if (!current || current.species.id !== species.id) return;
-    const moved = distance(current.x, current.y, event.clientX, event.clientY);
+    const moved = distance(
+      current.startX,
+      current.startY,
+      event.clientX,
+      event.clientY,
+    );
     const nextGhost = {
       ...current,
       x: event.clientX,
@@ -1481,6 +470,7 @@ export default function Home() {
     const canvas = canvasRef.current;
     const world = worldRef.current;
     if (!canvas || !world) return;
+    if (!activePointersRef.current.has(event.pointerId)) return;
     activePointersRef.current.set(event.pointerId, {
       clientX: event.clientX,
       clientY: event.clientY,
@@ -1526,11 +516,13 @@ export default function Home() {
         endY: point.y,
       };
     } else if (gesture.type === "resize") {
-      world.resizeBoundary(
-        gesture.boundaryId,
-        gesture.edge,
-        point.x,
-        point.y,
+      issueWorldCommand((activeWorld) =>
+        activeWorld.resizeBoundary(
+          gesture.boundaryId,
+          gesture.edge,
+          point.x,
+          point.y,
+        ),
       );
     } else {
       const deltaX = event.clientX - gesture.lastX;
@@ -1544,6 +536,7 @@ export default function Home() {
 
   const finishCanvasGesture = (
     event: ReactPointerEvent<HTMLCanvasElement>,
+    commit: boolean,
   ) => {
     const world = worldRef.current;
     const gesture = gestureRef.current;
@@ -1553,15 +546,21 @@ export default function Home() {
     }
     if (
       world &&
+      commit &&
       gesture &&
       gesture.pointerId === event.pointerId &&
       gesture.type === "boundary" &&
       draftRef.current
     ) {
-      const created = world.addBoundary(draftRef.current);
+      const created = issueWorldCommand((activeWorld) =>
+        activeWorld.addBoundary(draftRef.current!),
+      );
       setHasSelectedBoundary(Boolean(created));
       draftRef.current = null;
       setBoundaryMode(false);
+    }
+    if (gesture?.type === "boundary") {
+      draftRef.current = null;
     }
     if (gesture?.pointerId === event.pointerId) {
       gestureRef.current = null;
@@ -1594,22 +593,39 @@ export default function Home() {
   const togglePlaying = () => {
     const world = worldRef.current;
     if (!world) return;
-    world.playing = !world.playing;
-    setPlaying(world.playing);
+    const nextPlaying = !world.playing;
+    const issued = issueWorldCommand((activeWorld) => {
+      activeWorld.setPlaying(nextPlaying);
+      return true;
+    });
+    if (!issued) return;
+    setPlaying(nextPlaying);
     updateSummary();
   };
 
   const changeTemperature = (value: number) => {
+    const issued = issueWorldCommand((world) => {
+      world.setTemperature(value / 100);
+      return true;
+    });
+    if (!issued) return;
     setTemperature(value);
-    worldRef.current?.setTemperature(value / 100);
   };
 
   const beginReset = () => {
+    const world = worldRef.current;
+    if (!world || world.status === "error") return;
     if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
     setResetting(true);
     resetTimerRef.current = setTimeout(() => {
-      const world = worldRef.current;
-      world?.reset();
+      const issued = issueWorldCommand((activeWorld) => {
+        activeWorld.reset();
+        return true;
+      });
+      if (!issued) {
+        setResetting(false);
+        return;
+      }
       setPlaying(true);
       setTemperature(36);
       setBoundaryMode(false);
@@ -1626,7 +642,11 @@ export default function Home() {
   };
 
   const removeBoundary = () => {
-    worldRef.current?.removeSelectedBoundary();
+    const issued = issueWorldCommand((world) => {
+      world.removeSelectedBoundary();
+      return true;
+    });
+    if (!issued) return;
     setHasSelectedBoundary(false);
     updateSummary();
   };
@@ -1641,8 +661,8 @@ export default function Home() {
         tabIndex={0}
         onPointerDown={handleCanvasPointerDown}
         onPointerMove={handleCanvasPointerMove}
-        onPointerUp={finishCanvasGesture}
-        onPointerCancel={finishCanvasGesture}
+        onPointerUp={(event) => finishCanvasGesture(event, true)}
+        onPointerCancel={(event) => finishCanvasGesture(event, false)}
         onWheel={handleWheel}
         onKeyDown={(event) => {
           if (event.code === "Space") {
@@ -1700,6 +720,28 @@ export default function Home() {
                       setQuantities((current) => ({
                         ...current,
                         [species.id]: next,
+                      }));
+                    }}
+                    onKeyDown={(event) => {
+                      const keySteps: Partial<Record<string, number>> = {
+                        ArrowLeft: -1,
+                        ArrowDown: -1,
+                        ArrowRight: 1,
+                        ArrowUp: 1,
+                        PageDown: -10,
+                        PageUp: 10,
+                      };
+                      let next: number | null = null;
+                      if (event.key === "Home") next = 1;
+                      else if (event.key === "End") next = 1000;
+                      else if (keySteps[event.key] !== undefined) {
+                        next = clamp(quantity + keySteps[event.key]!, 1, 1000);
+                      }
+                      if (next === null) return;
+                      event.preventDefault();
+                      setQuantities((current) => ({
+                        ...current,
+                        [species.id]: next!,
                       }));
                     }}
                   />

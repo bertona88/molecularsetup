@@ -1,15 +1,31 @@
 # Acceptance tests
 
-## Current successor gate
+## Automated successor gate
 
-- Production build emits a valid worker and static asset bundle.
+- The native Rust suite passes force-gradient, conservation/accounting,
+  thermostat-statistics, deterministic-replay, finite-state, and scale-path
+  checks.
+- The independent reduced-unit Lennard-Jones fixture passes its documented
+  shifted-force, timestep-convergence, NVE-drift, and Langevin-calibration
+  tolerances.
+- A locked offline `wasm32-unknown-unknown` release has zero imports, exports
+  memory and every frozen ABI function, and matches its source/artifact
+  manifest.
+- The production build contains the exact verified Wasm module and a valid
+  application/server artifact.
 - Server-rendered HTML contains the molecular canvas, molecule tray, simulation
   controls, pressure-boundary action, play/pause, hold-to-reset, quantity
   maximum 1000, and all catalog formulae.
 - No dashboard, inspector, or reaction-recipe language appears in the rendered
   experience.
-- Lint and rendered-contract tests pass.
-- A hosted checkpoint reaches a verified successful deployment.
+- Source regression tests reject browser-side forces, bonds, thermal randomness,
+  and a JavaScript simulation fallback.
+- Pointer cancellation, active-pointer tracking, fixed drag origins, paused
+  stepping, exact species ids, and quantity endpoints are regression-tested.
+- Lint, rendered-contract, real-Wasm ABI, and architecture tests pass.
+
+Deployment is deliberately not part of this gate. Hosting verification and
+public replacement require separate authorization and evidence.
 
 ## Interaction matrix still required
 
@@ -38,10 +54,10 @@ Initial performance targets:
 | Single gesture | 1000 small molecules without a blocking frame |
 | Stability | 10-minute hot, compressed run without non-finite state |
 
-## Scientific acceptance slice
+## Independent scientific acceptance slice
 
-Before interpreting any control quantitatively, add a backend test mode for a
-reduced-unit Lennard-Jones box with:
+The engine crate includes a separate reduced-unit Lennard-Jones conformance
+fixture with:
 
 - explicit potential and shifted-force cutoff;
 - reduced mass, sigma, epsilon, box size, and periodic boundaries;
@@ -50,7 +66,18 @@ reduced-unit Lennard-Jones box with:
 - thermostat relaxation test for the selected canonical ensemble;
 - deterministic seed and reproducible fixture;
 - density and temperature sweeps including degenerate cases;
-- reported error tolerances and browser/device precision differences.
+- reported error tolerances and precision assumptions.
 
-That validation is intentionally separate from visual appeal and browser smoke
-testing.
+That fixture validates the numerical-method discipline required by this
+repository. It does not calibrate or validate the canvas's pedagogical reactive
+energy, and it does not authorize chemical claims.
+
+## Open browser and performance gate
+
+The following must still be measured before a public replacement:
+
+- mouse, touch, stylus, and keyboard interaction across current browsers;
+- frame/tick timing on named laptop and phone hardware;
+- a ten-minute hot, compressed stability run;
+- recoverable behavior when the Wasm asset is blocked or corrupt;
+- hosted artifact verification and explicit user acceptance.

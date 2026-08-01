@@ -18,6 +18,8 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+"${script_dir}/verify-engine.sh"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

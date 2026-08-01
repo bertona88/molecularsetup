@@ -21,7 +21,7 @@ fi
 
 restored_path="$project_root/.package-lock.json.restore"
 trap 'rm -f "$restored_path"' EXIT
-gzip -dc "${lock_parts[@]}" > "$restored_path"
+cat "${lock_parts[@]}" | gzip -dc > "$restored_path"
 
 actual_checksum="$(sha256sum "$restored_path" | cut -d ' ' -f 1)"
 if [[ "$actual_checksum" != "$expected_checksum" ]]; then

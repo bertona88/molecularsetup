@@ -2,10 +2,12 @@
 
 ## Greenfield molecular canvas
 
-The new interaction/model prototype lives in [`successor/`](./successor). It is
-a nearly textless 2D molecular world with visual starting molecules, quantities
-from 1 to 1000, direct drop placement, temperature-driven motion, generic
-state-derived bonding and breaking, and drawable piston boundaries.
+The greenfield successor lives in [`successor/`](./successor). It preserves the
+nearly textless 2D molecular canvas while replacing browser-side heuristic
+physics with a deterministic Rust/WebAssembly engine. It has visual starting
+molecules, exact quantities from 1 to 1000, direct drop placement,
+temperature-driven motion, continuous state-derived bonding and breaking, and
+drawable piston boundaries.
 
 Run it with:
 
@@ -14,18 +16,21 @@ npm run successor:install
 npm run successor:dev
 ```
 
-Build and validate it with:
+Validate the checked-in Wasm artifact and application with:
 
 ```sh
 npm run successor:test
 ```
 
-This slice is explicitly qualitative. Read [`VISION.md`](./VISION.md),
+The visible reactive model is explicitly qualitative and pedagogical, not
+predictive chemistry. No reaction or product table chooses its outcomes. Read
+[`VISION.md`](./VISION.md),
 [`MOLECULAR_MODEL_CONTRACT.md`](./MOLECULAR_MODEL_CONTRACT.md),
 [`INTERFACE_CONTRACT.md`](./INTERFACE_CONTRACT.md),
 [`CLAIMS_AND_VALIDATION.md`](./CLAIMS_AND_VALIDATION.md), and
 [`ACCEPTANCE_TESTS.md`](./ACCEPTANCE_TESTS.md) before interpreting or extending
-its behavior.
+its behavior. The exact completed checks and remaining gates are recorded in
+[`VALIDATION_REPORT.md`](./VALIDATION_REPORT.md).
 
 ---
 
@@ -82,7 +87,8 @@ npm run prototype:serve
 
 Then open http://127.0.0.1:4173/?setup=molecular.
 
-These commands validate only the legacy prototype. This wrapper intentionally has no future-product test suite until the greenfield implementation begins.
+These commands validate only the legacy prototype. The successor has its own
+native numerical, real-Wasm, build, and interaction-contract suites.
 
 ## Setup Universe
 

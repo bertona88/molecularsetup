@@ -34,4 +34,6 @@ if (!worker.default || typeof worker.default.fetch !== "function") {
 }
 NODE
 
-echo "Validated Sites artifact: ESM Worker default.fetch and hosting manifest are present."
+"${script_dir}/verify-engine.sh" --packaged
+
+echo "Validated packaged app: Worker, hosting manifest, and verified engine artifact are present."
