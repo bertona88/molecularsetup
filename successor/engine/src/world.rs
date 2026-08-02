@@ -252,7 +252,7 @@ impl World {
             EXPERIMENT_FREE_PLAY => self.load_free_play(),
             _ => unreachable!(),
         }
-        self.compute_forces_and_bond_states();
+        self.compute_forces_and_bond_states(false);
         self.refresh();
         1
     }
@@ -399,7 +399,7 @@ impl World {
             self.spawn_template_at(ingredient as usize, cx, cy, rotation, drift_x, drift_y);
         }
         self.rejected_ingredients = self.rejected_ingredients.saturating_add((count - accepted) as u64);
-        self.compute_forces_and_bond_states();
+        self.compute_forces_and_bond_states(false);
         self.refresh();
         accepted
     }
@@ -461,8 +461,6 @@ impl World {
             self.refresh();
             return 0;
         }
-        grab.previous_target_x = grab.target_x;
-        grab.previous_target_y = grab.target_y;
         grab.target_x = x;
         grab.target_y = y;
         self.refresh();
@@ -542,7 +540,7 @@ impl World {
         self.update_piston();
         self.update_sparks();
         self.apply_thermostat();
-        self.compute_forces_and_bond_states();
+        self.compute_forces_and_bond_states(true);
         self.integrate_atoms();
         self.resolve_wall_collisions();
         self.resolve_atom_collisions_and_form_bonds();
@@ -607,10 +605,10 @@ impl World {
         if exchange.is_finite() { self.ledger.thermal_exchange += exchange; }
     }
 
-    pub(crate) fn compute_forces_and_bond_states(&mut self) {
+    pub(crate) fn compute_forces_and_bond_states(&mut self, advance_lifecycle: bool) {
         for atom in &mut self.atoms { atom.fx = 0.0; atom.fy = 0.0; }
         self.potential_energy = 0.0;
-        self.apply_grab_force();
+        self.apply_grab_force(advance_lifecycle);
 
         let mut removals = Vec::new();
         let mut pending_events = Vec::new();
@@ -646,57 +644,59 @@ impl World {
 
             {
                 let bond = &mut self.bonds[index];
-                bond.age += FIXED_DT;
+                if advance_lifecycle { bond.age += FIXED_DT; }
                 bond.strain = strain;
-                match bond.state {
-                    BOND_FORMING => {
-                        bond.progress = (bond.progress + FIXED_DT / param.formation_time).min(1.0);
-                        if bond.progress >= 1.0 {
-                            bond.state = BOND_STABLE;
-                            bond.stress_clock = 0.0;
-                            completed = true;
-                        }
-                    }
-                    BOND_STABLE => {
-                        if strain.abs() >= param.strain_on || excitation >= param.excitation_break {
-                            bond.state = BOND_STRESSED;
-                            bond.stress_clock = 0.0;
-                            pending_events.push(Event {
-                                kind: EVENT_BOND_STRESSED,
-                                a: a_index as i32,
-                                b: b_index as i32,
-                                x: midpoint.0,
-                                y: midpoint.1,
-                                magnitude: strain.abs().max(excitation / param.excitation_break),
-                                age: 0.0,
-                                lifetime: 1.4,
-                                energy: excitation,
-                                wall_id: 0,
-                            });
-                        }
-                    }
-                    BOND_STRESSED => {
-                        if strain.abs() < 0.62 * param.strain_on
-                            && excitation < 0.68 * param.excitation_break
-                        {
-                            bond.state = BOND_STABLE;
-                            bond.stress_clock = 0.0;
-                        } else {
-                            let severe = strain.abs() >= param.strain_break
-                                || excitation >= param.excitation_break;
-                            bond.stress_clock += if severe { 2.4 * FIXED_DT } else { FIXED_DT };
-                            if bond.stress_clock >= 0.22 {
-                                bond.state = BOND_BREAKING;
+                if advance_lifecycle {
+                    match bond.state {
+                        BOND_FORMING => {
+                            bond.progress = (bond.progress + FIXED_DT / param.formation_time).min(1.0);
+                            if bond.progress >= 1.0 {
+                                bond.state = BOND_STABLE;
                                 bond.stress_clock = 0.0;
-                                started_breaking = true;
+                                completed = true;
                             }
                         }
+                        BOND_STABLE => {
+                            if strain.abs() >= param.strain_on || excitation >= param.excitation_break {
+                                bond.state = BOND_STRESSED;
+                                bond.stress_clock = 0.0;
+                                pending_events.push(Event {
+                                    kind: EVENT_BOND_STRESSED,
+                                    a: a_index as i32,
+                                    b: b_index as i32,
+                                    x: midpoint.0,
+                                    y: midpoint.1,
+                                    magnitude: strain.abs().max(excitation / param.excitation_break),
+                                    age: 0.0,
+                                    lifetime: 1.4,
+                                    energy: excitation,
+                                    wall_id: 0,
+                                });
+                            }
+                        }
+                        BOND_STRESSED => {
+                            if strain.abs() < 0.62 * param.strain_on
+                                && excitation < 0.68 * param.excitation_break
+                            {
+                                bond.state = BOND_STABLE;
+                                bond.stress_clock = 0.0;
+                            } else {
+                                let severe = strain.abs() >= param.strain_break
+                                    || excitation >= param.excitation_break;
+                                bond.stress_clock += if severe { 2.4 * FIXED_DT } else { FIXED_DT };
+                                if bond.stress_clock >= 0.22 {
+                                    bond.state = BOND_BREAKING;
+                                    bond.stress_clock = 0.0;
+                                    started_breaking = true;
+                                }
+                            }
+                        }
+                        BOND_BREAKING => {
+                            bond.progress = (bond.progress - FIXED_DT / 0.30).max(0.0);
+                            if bond.progress <= 0.0 { broken = true; }
+                        }
+                        _ => { bond.state = BOND_BREAKING; }
                     }
-                    BOND_BREAKING => {
-                        bond.progress = (bond.progress - FIXED_DT / 0.30).max(0.0);
-                        if bond.progress <= 0.0 { broken = true; }
-                    }
-                    _ => { bond.state = BOND_BREAKING; }
                 }
             }
 
@@ -789,20 +789,25 @@ impl World {
         for event in pending_events { self.push_event(event); }
     }
 
-    fn apply_grab_force(&mut self) {
-        let Some(grab) = &self.grab else { return; };
-        if grab.atom >= self.atoms.len() { self.grab = None; return; }
-        let atom = &mut self.atoms[grab.atom];
+    fn apply_grab_force(&mut self, account_pointer_work: bool) {
+        let Some(atom_index) = self.grab.as_ref().map(|grab| grab.atom) else { return; };
+        if atom_index >= self.atoms.len() { self.grab = None; return; }
+        let grab = self.grab.as_mut().expect("grab was checked above");
+        let atom = &mut self.atoms[atom_index];
         let dx = grab.target_x - atom.x;
         let dy = grab.target_y - atom.y;
         let force_x = 76.0 * dx - 7.0 * atom.vx;
         let force_y = 76.0 * dy - 7.0 * atom.vy;
         atom.fx += force_x;
         atom.fy += force_y;
-        let target_dx = grab.target_x - grab.previous_target_x;
-        let target_dy = grab.target_y - grab.previous_target_y;
-        let work = force_x * target_dx + force_y * target_dy;
-        if work.is_finite() && work > 0.0 { self.ledger.grab_work += work; }
+        if account_pointer_work {
+            let target_dx = grab.target_x - grab.previous_target_x;
+            let target_dy = grab.target_y - grab.previous_target_y;
+            let work = force_x * target_dx + force_y * target_dy;
+            if work.is_finite() { self.ledger.grab_work += work; }
+            grab.previous_target_x = grab.target_x;
+            grab.previous_target_y = grab.target_y;
+        }
     }
 
     fn apply_angular_forces(&mut self) {

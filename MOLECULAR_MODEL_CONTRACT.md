@@ -63,6 +63,9 @@ field.
 - Fixed step: `1/120` reduced time units.
 - Browser advance: at most five fixed steps per animation frame; full overrun
   ticks are discarded and the sub-tick remainder is retained.
+- Only executed fixed steps advance atom/bond/event ages, bond lifecycle clocks,
+  or pending pointer work. View-refreshing commands such as ingredient insertion
+  do not advance a paused world.
 - Atom capacity: 18,000; ingredient counts are truncated only at whole-template
   boundaries.
 - Hydrogen mass: 1 reduced unit.
@@ -145,8 +148,9 @@ planar and pedagogical; it is not a stereochemical or vibrational prediction.
 ## Grabbing and piston boundaries
 
 The grab force is a damped spring from an atom to the latest pointer target.
-Pointer motion contributes to the external grab-work ledger. A dragged atom is
-still integrated, collides, remains confined, and may strain its bonds.
+Pointer motion contributes once to the signed external grab-work ledger on the
+next fixed step. A dragged atom is still integrated, collides, remains confined,
+and may strain its bonds.
 
 The container begins at reduced bounds `[-320,320] x [-220,220]`. The right
 wall moves toward its clamped target at no more than 150 reduced distance units

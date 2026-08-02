@@ -198,6 +198,43 @@ fn hot_or_grabbed_h2_strains_and_breaks_inside_three_seconds() {
 }
 
 #[test]
+fn non_step_commands_do_not_advance_bond_lifecycle_or_grab_work() {
+    let mut world = World::new(0x4d41_4b45);
+    world.load_experiment(EXPERIMENT_MAKE_BOND as u32);
+    world.step_fixed(10);
+    assert_eq!(world.bonds.len(), 1, "reference pair did not begin forming");
+
+    world.set_playing(false);
+    let time = world.simulated_time;
+    let steps = world.completed_steps;
+    let state = world.bonds[0].state;
+    let progress = world.bonds[0].progress;
+    let age = world.bonds[0].age;
+    let released = world.ledger.formation_release;
+    for _ in 0..40 {
+        assert_eq!(world.spawn_ingredient(0, 1, 200.0, 160.0), 1);
+    }
+    assert_eq!(world.simulated_time, time);
+    assert_eq!(world.completed_steps, steps);
+    assert_eq!(world.bonds[0].state, state);
+    assert_eq!(world.bonds[0].progress, progress);
+    assert_eq!(world.bonds[0].age, age);
+    assert_eq!(world.ledger.formation_release, released);
+
+    world.load_experiment(EXPERIMENT_BREAK_BOND as u32);
+    let atom_id = world.atoms[0].id;
+    assert_eq!(world.grab_atom(atom_id, world.atoms[0].x, world.atoms[0].y), 1);
+    assert_eq!(world.drag_atom(atom_id, -150.0, 0.0), 1);
+    assert_eq!(world.spawn_ingredient(0, 1, 200.0, 160.0), 1);
+    assert_eq!(world.ledger.grab_work, 0.0, "a state refresh consumed pending pointer work");
+    world.step_fixed(1);
+    let accounted = world.ledger.grab_work;
+    assert!(accounted > 0.0);
+    world.step_fixed(1);
+    assert_eq!(world.ledger.grab_work, accounted, "one pointer move was counted twice");
+}
+
+#[test]
 fn angular_energy_prefers_the_declared_h_o_h_angle() {
     let preferred = angle_preference_energy(H_O_H_ANGLE_RADIANS);
     let linear = angle_preference_energy(core::f64::consts::PI);

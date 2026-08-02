@@ -37,6 +37,11 @@ Every command can grow memory or replace a packed vector. It invalidates every
 previous pointer and JavaScript typed-array view. Reacquire all views after
 every mutation, including setters and failures.
 
+Only steps executed by `ms_advance` or `ms_step_fixed` advance model clocks,
+bond lifecycle, or pending pointer work. Other commands may refresh packed
+views but cannot progress a forming/breaking bond in a paused world. A changed
+grab target contributes signed work at most once, on the next executed step.
+
 ## Packed views
 
 Each view has `ms_<name>_ptr()`, `ms_<name>_len()`, and

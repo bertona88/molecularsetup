@@ -259,6 +259,48 @@ test("packed pointers are reacquired after every mutation and replay is determin
   assert.deepEqual(deterministicRun(), deterministicRun());
 });
 
+test("non-step commands preserve bond clocks and consume grab work once", async () => {
+  const api = await instantiateEngine();
+  mutate(api, "ms_reset", 0x4d41_4b45);
+  mutate(api, "ms_load_experiment", 0);
+  for (let step = 0; step < 240 && api.ms_bonds_len() === 0; step += 1) {
+    mutate(api, "ms_step_fixed", 1);
+  }
+  mutate(api, "ms_set_playing", 0);
+  const before = readSnapshot(api);
+  assert.equal(before.bonds.count, 1, "reference pair did not begin forming");
+
+  for (let insertion = 0; insertion < 40; insertion += 1) {
+    assert.equal(mutate(api, "ms_spawn_ingredient", 0, 1, 200, 160).result, 1);
+  }
+  const after = readSnapshot(api);
+  assert.equal(after.stats.values[0], before.stats.values[0], "simulated time advanced");
+  assert.equal(after.stats.values[17], before.stats.values[17], "fixed-step count advanced");
+  assert.equal(after.stats.values[9], before.stats.values[9], "formation release advanced");
+  for (const [index, label] of [
+    [4, "state"],
+    [5, "progress"],
+    [9, "age"],
+  ]) {
+    assert.equal(
+      after.bonds.values[index],
+      before.bonds.values[index],
+      `an insertion command advanced bond ${label}`,
+    );
+  }
+
+  mutate(api, "ms_load_experiment", 1);
+  const atomId = readSnapshot(api).atoms.values[0];
+  assert.equal(mutate(api, "ms_grab_atom", atomId, -8, 0).result, 1);
+  assert.equal(mutate(api, "ms_drag_atom", atomId, -150, 0).result, 1);
+  assert.equal(mutate(api, "ms_spawn_ingredient", 0, 1, 200, 160).views.stats.values[11], 0);
+  mutate(api, "ms_step_fixed", 1);
+  const accounted = readSnapshot(api).stats.values[11];
+  assert.ok(accounted > 0, "pointer work was not recorded on the next fixed step");
+  mutate(api, "ms_step_fixed", 1);
+  assert.equal(readSnapshot(api).stats.values[11], accounted, "pointer work was counted twice");
+});
+
 test("real Wasm rejects invalid commands and corrupt modules fail closed", async () => {
   const api = await instantiateEngine();
   mutate(api, "ms_reset", 1);

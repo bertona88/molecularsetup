@@ -20,6 +20,9 @@
 - A reference spark causes breaking energy inside 120 fixed steps and at least
   6 of 8 oxygen atoms acquire two active O-H bonds by 960 fixed steps.
 - Formation release and breaking absorption populate separate ledgers.
+- Ingredient and setter commands do not advance bond state, progress, age, or
+  energy ledgers while no fixed step executes; one pointer displacement is
+  consumed by the grab-work ledger at most once.
 - Identical seed and semantic commands reproduce bit-identical tested state.
 - A piston target command does not change position immediately; motion is
   finite and visible within 60 fixed steps (500 ms).
@@ -49,6 +52,8 @@
 - Every experiment and ingredient id has the exact documented atom/bond count.
 - Spark, atom grab/drag/release, and piston targeting mutate their packed views
   as documented.
+- Repeated non-step mutations leave a forming bond's state/progress/age and
+  simulated step count unchanged; pending grab work is recorded once.
 - A retained pre-mutation typed array does not become the fresh state; all
   pointers/views are reacquired after commands and memory growth.
 - Identical commands replay to identical packed atom, bond, wall, event, and
