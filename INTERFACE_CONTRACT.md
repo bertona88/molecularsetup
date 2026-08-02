@@ -2,85 +2,126 @@
 
 ## Human interface
 
-The main route is a full-viewport canvas. Persistent controls are limited to:
+The main route is a full-viewport Canvas2D molecular field that becomes
+populated as soon as the verified engine loads. Persistent visible controls are
+limited to:
 
-- visual molecule cards;
-- one quantity slider per card;
-- boundary draw mode;
-- play or pause;
-- remove selected boundary;
-- hold-to-reset;
-- one temperature slider.
+- four experiment modes: Make a bond, Break a bond, Ignite, Free play;
+- five ingredient buttons: H, O, H2, O2, H2O;
+- Spark;
+- play/pause and reset;
+- one broad horizontal Cold / Warm / Hot control.
 
-Formulae and quantity values are the only persistent visible text. Explanations,
-graphs, inspectors, reaction tables, and property dashboards do not belong on
-the default canvas.
+There is one default container. Its right wall is visibly a piston. The primary
+experience has no arbitrary boundary drawing, numerical readout, chart,
+inspector, property table, reaction recipe, or product selector.
 
 ## Gestures
 
 | Gesture | Result |
 |---|---|
-| Tap a molecule | Spawn the selected quantity near the unobstructed center |
-| Drag a molecule | Spawn the selected quantity at the drop point |
+| Tap ingredient | Add one copy near the unobstructed center |
+| Drag ingredient to canvas | Add one copy at the drop point |
+| Hold ingredient | Stream additional whole copies at a bounded cadence |
+| Pointer-down on atom | Attach a spring grab to that atom |
+| Drag grabbed atom | Move the spring target; never set atom position directly |
+| Release/cancel atom drag | Remove the spring grab |
 | Drag empty canvas | Pan |
-| Mouse wheel | Zoom around the pointer |
-| Two-finger pinch/drag | Zoom and pan around the gesture center |
-| Select boundary tool, then drag | Create one rectangular boundary |
-| Drag a selected wall | Move that wall as a piston |
-| Hold reset for 720 ms | Clear atoms, bonds, queues, boundaries, camera, and heat |
+| Wheel | Zoom around pointer |
+| Two-finger pinch/drag | Zoom and pan around gesture center |
+| Arm Spark, then point on canvas | Create one local expanding activation wave |
+| Drag gold piston wall | Set its target; wall approaches at finite speed |
 
-Pointer cancellation must never spawn. The slider owns its pointer gesture. A
-quantity always means molecules, not atoms.
+A card pointer cancellation never adds an ingredient. A second active canvas
+pointer cancels any atom grab and begins pinch. Pointer moves from inactive ids
+are ignored. Holding adds one ingredient per stream tick; it never switches to
+a hidden quantity batch.
+
+## Keyboard
+
+- Space toggles play/pause while the canvas is focused.
+- `S` arms spark placement; Enter applies it at the camera center.
+- Escape cancels spark and releases an active grab.
+- Arrow keys pan the focused canvas.
+- Native button and range keyboard behavior remains available.
+- Keyboard activation of an ingredient adds exactly one copy.
+
+## Semantic heat
+
+The heat input is horizontal and labels its whole domain Cold, Warm, and Hot.
+Its screen-reader value is categorical rather than a printed percentage or
+physical unit. Both visual endpoints must produce measurably different motion
+inside one second; the engine acceptance ratio is at least 5x.
 
 ## Simulation backend boundary
 
-The browser shell should converge on this backend-neutral shape:
+The browser adapter provides semantic operations equivalent to:
 
 ```ts
-interface SimulationBackend {
-  enqueue(command: SimulationCommand): void;
-  advance(realDeltaMilliseconds: number): void;
-  view(): SimulationView;
+interface SimulationBackendV2 {
   reset(seed: number): void;
+  loadExperiment(id: 0 | 1 | 2 | 3): void;
+  setPlaying(value: boolean): void;
+  setTemperature(normalized: number): void;
+  spawnIngredient(id: 0 | 1 | 2 | 3 | 4, count: number, x: number, y: number): number;
+  applySpark(x: number, y: number, energy: number, radius: number): boolean;
+  grabAtom(atomId: number, x: number, y: number): boolean;
+  dragAtom(atomId: number, x: number, y: number): boolean;
+  releaseAtom(atomId: number): boolean;
+  setPistonTarget(x: number): boolean;
+  advance(realDeltaMilliseconds: number): number;
+  stepFixed(count: number): number;
 }
 ```
 
-Commands:
+The Wasm module is the only backend. It must report ABI/model `2/2`, export
+memory, have zero imports, and expose packed atom, explicit-bond, wall, event,
+and statistics views. Per-frame atom/bond objects do not cross the boundary.
 
-- `spawn(speciesId, count, worldX, worldY)`;
-- `setTemperature(normalizedValue)`;
-- `createBoundary(rectangle)`;
-- `moveBoundaryEdge(boundaryId, edge, worldCoordinate)`;
-- `removeBoundary(boundaryId)`;
-- `setPlaying(boolean)`;
-- `reset(seed)`.
+Every command invalidates every previous pointer and typed array. The adapter
+refreshes all views after exactly one raw mutation, validates lengths/strides,
+and fails closed on missing exports, version skew, non-finite statistics, or
+out-of-bounds pointers.
 
-The view exposes stable typed-array or GPU-buffer data for atoms, current bonds,
-boundaries, event pulses, counts, simulated time, seed, and model version.
-Per-frame atom objects crossing the Wasm boundary are forbidden.
+## Visual state mapping
+
+| Model state | Required visible evidence |
+|---|---|
+| Collision | momentum change plus a fading impact ring |
+| Excitation | atom halo plus the arriving spark wave |
+| Bond forming | incomplete/dashed cyan connection and progress |
+| Bond stable | calm continuous light connection; double lane for order 2 |
+| Bond stressed | amber/red strain color, glow, and bounded wobble |
+| Bond breaking | red segmented connection fading with progress |
+| Formation energy | persistent outward energy pulse and changed motion/excitation |
+| Piston load | finite wall motion, collision response, glow, and flex |
+
+Bonds are drawn after atoms so state remains readable. Event traces remain for
+1.2–2 seconds. Reduced motion removes decorative animation/wobble but retains
+model motion, bond state, spark position, event traces, and outcomes.
 
 ## Accessibility
 
-- Every icon button has a descriptive accessible name.
-- Every molecule card announces species and selected quantity.
-- No accessibility node is created per simulated atom.
-- One polite world summary reports play state, atom counts, and boundary count.
-- Space toggles physics while the canvas is focused.
-- Escape cancels boundary drawing.
-- Reduced-motion mode removes decorative pulses and transitions, not model
-  motion or outcomes.
+- Every control has a descriptive accessible name and visible focus.
+- Experiment buttons expose pressed state.
+- No accessibility node is created per atom.
+- One polite summary reports H/O counts, bond-state counts, excited atoms,
+  active grab state, and play state.
+- Canvas instructions describe grab, pan, and piston interactions.
+- Engine loading has status text. Blocked, corrupt, or wrong-version Wasm
+  produces an alert, disables commands, and leaves the world inert.
 
-## Shareable recipe
+## Responsive layout
 
-The eventual URL payload records commands and initial conditions rather than
-mutable particle frames:
+Desktop keeps ingredients on a narrow side rail, experiments at the top, and
+heat/actions at the bottom. At mobile width, ingredients become a bottom
+horizontal tray, heat moves above it, and actions remain reachable without
+covering the experiment switcher. Canvas gestures retain priority outside
+these controls.
 
-- schema and model versions;
-- deterministic seed;
-- species, quantities, spawn coordinates, and order;
-- temperature changes;
-- boundary geometry and edits;
-- camera only when presentation state is intentionally shared.
+## Shareable recipe boundary
 
-Replay must reject unknown model versions rather than silently approximating
-them with a different backend.
+A future URL recipe may record schema/model version, seed, experiment,
+ingredient insertions, heat, sparks, piston targets, and camera state. It must
+record commands and initial conditions rather than mutable particle frames and
+must reject unknown model versions rather than approximate them.

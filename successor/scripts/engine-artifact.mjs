@@ -14,8 +14,8 @@ import { fileURLToPath } from "node:url";
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const engineRoot = resolve(projectRoot, "engine");
 const manifestSchemaVersion = 1;
-const expectedAbiVersion = 1;
-const expectedModelVersion = 1;
+const expectedAbiVersion = 2;
+const expectedModelVersion = 2;
 const wasmMagic = Buffer.from([0x00, 0x61, 0x73, 0x6d]);
 
 function fail(message) {

@@ -5,10 +5,9 @@ import test from "node:test";
 const distUrl = new URL("../dist/", import.meta.url);
 const appUrl = new URL("../src/App.tsx", import.meta.url);
 
-test("builds a relative-path static GitHub Pages entry", async () => {
+test("builds a relative-path static entry", async () => {
   const html = await readFile(new URL("index.html", distUrl), "utf8");
   const assets = await readdir(new URL("assets/", distUrl));
-
   assert.match(html, /<title>MolecularSetup — build chemistry by touch<\/title>/);
   assert.match(html, /<div id="root"><\/div>/);
   assert.match(html, /<script[^>]+src="\.\/assets\/[^"]+\.js"/);
@@ -17,16 +16,27 @@ test("builds a relative-path static GitHub Pages entry", async () => {
   assert.ok(assets.some((asset) => asset.endsWith(".js")));
 });
 
-test("preserves the molecular canvas interaction contract", async () => {
+test("source preserves the chemistry-intuition v2 interaction contract", async () => {
   const source = await readFile(appUrl, "utf8");
-
+  for (const label of [
+    "Make a bond",
+    "Break a bond",
+    "Ignite",
+    "Free play",
+    "Spark",
+    "Cold",
+    "Warm",
+    "Hot",
+    "Drag piston",
+  ]) {
+    assert.match(source, new RegExp(label));
+  }
   assert.match(source, /className={`molecular-canvas/);
-  assert.match(source, /aria-label="Molecules"/);
+  assert.match(source, /aria-label="Ingredients"/);
   assert.match(source, /aria-label="Simulation controls"/);
-  assert.match(source, /Draw pressure boundary/);
-  assert.match(source, /Pause simulation/);
-  assert.match(source, /Hold to reset the world/);
-  assert.match(source, /aria-valuemax=\{1000\}/);
-  assert.match(source, /H₂O|SPECIES/);
-  assert.doesNotMatch(source, /dashboard|inspector|reaction recipe/i);
+  assert.match(source, /Hold to add a stream/);
+  assert.match(source, /Reset this experiment/);
+  assert.match(source, /world is stopped/i);
+  assert.doesNotMatch(source, /dashboard|inspector|reaction recipe|quantity slider/i);
+  assert.doesNotMatch(source, /aria-valuenow|kelvin|pascal/i);
 });

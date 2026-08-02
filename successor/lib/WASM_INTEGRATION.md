@@ -1,121 +1,62 @@
 # Browser adapter integration
 
-`molecular-world.ts` is the only simulation backend the successor page should
-instantiate. It never evaluates forces or bonds in JavaScript and has no
-heuristic fallback. `molecular-catalog.ts` owns stable engine ids and the
-existing tray/thumbnail presentation data.
+`molecular-world.ts` is the only simulation backend used by the successor. It
+loads `./engine/molecularsetup_engine.wasm`, requires a zero-import module and
+ABI/model `2/2`, validates every packed pointer/length/stride, and has no
+JavaScript dynamics or fallback.
 
-The pipeline must serve the zero-import artifact at:
+## Ownership
 
-```text
-./engine/molecularsetup_engine.wasm
-```
+- Rust/Wasm owns atom collision, bond state/forces, activation, excitation,
+  temperature noise, angular preference, grab spring, piston motion, wall
+  impulse/load, events, statistics, and energy ledgers.
+- The adapter owns semantic command queuing during load, typed-array
+  reacquisition, view validation, hit testing, camera transforms, summaries,
+  and Canvas2D presentation.
+- `App.tsx` owns pointer/keyboard gestures and controls. It may call only
+  semantic adapter methods.
 
-The relative Vite base keeps this path valid both under the repository Pages
-subpath and at a future custom-domain root.
+## Mutation rule
 
-## Exact `src/App.tsx` changes
+Every raw command invalidates all previous pointers and typed arrays. Adapter
+`mutate()` performs exactly one raw call and then `refreshViews()` reacquires
+atoms, bonds, walls, events, and stats. No caller retains a view across a
+command. A length/stride mismatch, out-of-memory pointer, non-finite statistics,
+count disagreement, missing four-wall container, or wrong version becomes a
+fatal engine error.
 
-1. Import the catalog and adapter near the current React import:
+## Load failure
 
-   ```ts
-   import {
-     ELEMENTS,
-     SPECIES,
-     type Species,
-   } from "@/lib/molecular-catalog";
-   import {
-     MolecularWorld,
-     type BoundaryDraft,
-     type BoundaryEdge,
-   } from "@/lib/molecular-world";
-   ```
+Construction is SSR-safe and performs no I/O. `initialize()` runs from a client
+effect. Semantic commands issued while loading queue in order. If fetch,
+compile, import validation, export validation, version validation, or runtime
+view validation fails:
 
-2. Delete the inline `ElementKey`, `ElementModel`, `AtomSeed`, `Species`,
-   `Atom`, `Bond`, `Boundary`, `Camera`, and `SpawnJob` declarations. Delete
-   the inline `ELEMENTS` and `SPECIES` constants. Keep the gesture, drag-ghost,
-   and pinch types; they are browser interaction state.
+- the adapter clears engine and packed views;
+- queued commands are discarded;
+- status becomes `error`;
+- all command-producing controls become disabled;
+- the app shows an alert and the canvas remains inert.
 
-3. Delete `MAX_ATOMS`, `FIXED_STEP`, `GOLDEN_ANGLE`, `roundedRectPath`,
-   `createRandom`, and the entire inline `MolecularWorld` class. Keep `clamp`,
-   `quantityFromSlider`, `sliderFromQuantity`, and `distance`; the UI gestures
-   still use them.
+Do not add an approximate animation or TypeScript fallback to the failure path.
 
-4. Keep the existing SSR-safe construction block unchanged:
+## Rendering order
 
-   ```ts
-   if (worldRef.current === null) {
-     worldRef.current = new MolecularWorld();
-   }
-   ```
+The Canvas2D renderer draws:
 
-   Construction does not fetch or touch `window`. At the start of the canvas
-   effect, initialize once and surface rejection through the existing live
-   summary:
+1. calm field and container interior;
+2. persistent spark/collision/bond/energy/wall traces;
+3. spring grab tether;
+4. atoms and excitation halos;
+5. explicit bonds above atoms, with order and state styling;
+6. wall glow/flex and piston handle.
 
-   ```ts
-   void world.initialize().catch(() => {
-     setWorldSummary(world.summary());
-   });
-   ```
+Reduced motion removes decorative state wobble and repeated CSS pulses but does
+not remove model motion, excitation, bond state, traces, piston response, or
+outcomes.
 
-   Commands made while this promise is pending are queued in semantic order.
-   Do not introduce a JavaScript fallback in the catch branch.
+## Presentation-only catalog
 
-5. Replace `updateSummary`'s direct iteration over `world.atoms` and
-   `world.boundaries` with:
-
-   ```ts
-   setWorldSummary(world.summary());
-   ```
-
-6. Replace the fixed-step accumulator inside the animation frame. The engine
-   owns accumulation, the `1/120` step, and the five-step frame cap:
-
-   ```ts
-   const elapsedMilliseconds = Math.min(50, now - previous);
-   previous = now;
-   world.flushSpawnQueue();
-   if (world.playing) world.advance(elapsedMilliseconds);
-   world.render(context, reducedMotion, draftRef.current);
-   summaryClock += elapsedMilliseconds / 1000;
-   ```
-
-   Remove the local `accumulator` and every call to `world.step(...)`.
-
-7. Spawning remains the same call shape. The imported species now contains its
-   explicit numeric engine id:
-
-   ```ts
-   world.enqueueSpawn(species, quantity, point.x, point.y);
-   ```
-
-8. Prefer the semantic play command in `togglePlaying`:
-
-   ```ts
-   const nextPlaying = !world.playing;
-   world.setPlaying(nextPlaying);
-   setPlaying(nextPlaying);
-   ```
-
-   `world.playing = nextPlaying` also routes through that command, but the
-   method makes the backend boundary visible at the call site.
-
-9. Temperature, reset, camera transforms, boundary creation, selection,
-   resize, and removal keep their existing call shapes. `addBoundary` now
-   returns a boolean rather than a mutable boundary object, which is already
-   compatible with `Boolean(created)`.
-
-10. `MoleculeThumbnail` can keep its current implementation. Its atom
-    coordinates and `ELEMENTS` radii are presentation-only; the engine owns the
-    actual species templates.
-
-11. If `world.status === "error"`, leave the canvas inert and use
-    `world.summary()` for the polite live region. Do not keep accepting UI
-    actions after a load error: guard handlers or disable their controls. The
-    adapter intentionally throws if a semantic command is sent after a fatal
-    engine validation/runtime error.
-
-No CSS changes are required. Canvas grid, bond-strain colors, atom colors and
-highlights, boundary glow/handles, draft geometry, card previews, quantities,
-and responsive layout remain unchanged.
+`molecular-catalog.ts` freezes ingredient ids `H=0`, `O=1`, `H2=2`, `O2=3`,
+`H2O=4` and element ids `H=0`, `O=1`. Thumbnail geometry/color is presentation
+metadata. Engine templates and all later connectivity remain Rust-owned.

@@ -2,73 +2,120 @@
 
 ## Repository status
 
-This repository is the preliminary wrapper for **MolecularSetup** (molecularsetup.com), one system in the **Setup Universe**.
+MolecularSetup is rebuilding its browser successor as a bonding-first chemistry
+intuition world. The active implementation is `successor/`: a static
+React/Canvas2D shell around a deterministic, zero-import Rust/WebAssembly
+engine. ABI/model v2 is intentionally incompatible with v1.
 
-The current browser demo is only a starting artifact. It is not the final product vision, not the final architecture, and not a commitment to the current UI, controls, numerical model, or source layout. The intended MolecularSetup simulator will be designed and implemented substantially from scratch.
+Production release `20260726T002235Z-478235af2650` was verified at
+https://molecularsetup.com/ on 2026-07-26. Current availability is external
+state and must be checked live. Its source remains under `prototype/` as
+immutable reference-only prior art. Do not edit, build new work inside, move,
+or delete `prototype/` without explicit authorization.
 
-Production release `20260726T002235Z-478235af2650` was verified at https://molecularsetup.com/ on 2026-07-26. Current availability is external state and must be checked live rather than inferred from this repository.
+## Active product boundary
 
-Its exact source snapshot is preserved under `prototype/` as immutable, reference-only prior art. It is not the architecture that future work should extend. Do not modify that snapshot as part of the rebuild. It may be moved, archived, or removed only with explicit user authorization after a successor has been accepted and its provenance retained.
+The accepted v2 slice is a calm, full-canvas, two-dimensional teaching world
+where collision, activation, bond formation, strain, breaking, energy release,
+and compression are visually causal events.
 
-## Core directive
+- Four experiments: Make a bond, Break a bond, Ignite, and Free play.
+- Five ingredients only: H, O, H2, O2, and H2O.
+- One persistent container with one finite-speed piston wall.
+- Explicit first-class bonds with forming, stable, stressed, and breaking
+  states.
+- Local spark excitation, direct spring grabbing, horizontal semantic heat,
+  pan, wheel zoom, and pinch zoom.
+- No persistent numerical dashboard, inspector, reaction table, or scripted
+  product selection.
 
-- Approach the next simulator as a greenfield scientific product.
-- Do not optimize or expand the prototype merely because it already exists.
-- Before substantial implementation, establish the new product and model boundaries in repository-visible documents:
-  - `VISION.md`
-  - `MOLECULAR_MODEL_CONTRACT.md`
-  - `INTERFACE_CONTRACT.md`
-  - `CLAIMS_AND_VALIDATION.md`
-  - `ACCEPTANCE_TESTS.md`
-- A convincing animation is not sufficient. The intended simulator needs explicit state, units, governing rules, numerical methods, direct manipulation, measurements, experiments, failure states, and validation appropriate to its claims.
-- Label qualitative, reduced-order, heuristic, and pedagogical behavior honestly. Never silently promote it to calibrated physical prediction.
-- Treat physical, biological, behavioral, social, operational, and performance predictions with the same evidence discipline: state the validity domain, uncertainty, and nonclaims.
+Perceptual causality is part of correctness. An event that exists only in an
+internal counter but is not legible through motion, bond state, excitation,
+event traces, or wall response does not satisfy the product contract.
 
-## MolecularSetup direction
+## Scientific claim boundary
 
-The intended MolecularSetup product is a molecular and materials workbench for structures, force fields, thermodynamic ensembles, reactions, transport, spectroscopy, and coarse-grained or atomistic simulation.
+The engine is deterministic and scientifically structured, but deliberately
+reduced, dimensionless, planar, pedagogical, and non-predictive.
 
-**First accepted end-to-end slice:** Build one reduced-unit Lennard–Jones box with a documented force field, ensemble, integrator, timestep, thermostat, and quantitative energy-drift validation.
+- H and O have explicit integer valence capacities of 1 and 2.
+- H-H order 1, O-O order 2, and O-H order 1 use versioned teaching
+  parameters.
+- Oxygen uses four hydrogen masses rather than the physical ratio of about
+  sixteen so oxygen movement remains visible.
+- A three-body angular term prefers H-O-H geometry.
+- Stable reactant bonds require excitation or sufficient mechanical strain to
+  rearrange; free atoms may bond through favorable collisions.
+- No reactant-to-product table, product graph, or water-production rule may be
+  introduced.
 
-**Ownership boundary:** MolecularSetup owns molecular/material state and response; OpticalSetup owns instrument propagation; QuantumSetup owns explicitly quantum evolution; downstream setups consume material properties through versioned ports.
+Do not claim physical kelvin, pressure, time, energy, distance, rate,
+equilibrium, mechanism, stereochemistry, or predictive reaction outcome.
+Plausible topology is a teaching behavior inside this declared model, not a
+real chemistry result.
 
-**Claim gate:** The force-field validity domain, ensemble, integrator, timestep, and mapping to physical units must be explicit; no chemical identity, reaction, toxicity, or material-qualification claim is allowed by default.
+## Engine and browser ownership
 
-Its Setup Universe interface should eventually provide material state and response to optical, biological, electrical, quantum, and fabrication setups. This direction is provisional until a written interface contract is reviewed.
+- Rust owns atom state, compressed masses, fixed stepping, seeded randomness,
+  spatial neighbor search, hard collision response, bonds, angular forces,
+  activation, excitation decay, grabbing, piston motion, wall impulse/load,
+  events, statistics, and energy ledgers.
+- Wasm exports one zero-import module with packed arrays and ABI/model 2/2.
+  Every mutation invalidates prior pointers and typed-array views.
+- TypeScript owns input gestures, camera transforms, accessibility, experiment
+  selection, artifact validation, and Canvas2D presentation. It must not contain
+  a physics, bond, reaction, or randomness fallback.
+- If Wasm is blocked, corrupt, or version-skewed, the world remains inert and
+  reports the failure.
 
-## Setup Universe doctrine
+## Required repository-visible contracts
 
-- MolecularSetup is one composable setup inside a larger universe of scientific and systems workbenches.
-- Setup Universe repositories are independently deployed workbenches intended to become interoperable; that interoperability does not exist merely because the repositories share a family name.
-- Setups should eventually be able to contain, drive, observe, or exchange well-defined state with other setups. “Contain” means orchestrate or reference another independently owned setup through an interface; it does not mean vendor its source, copy its internal state, or transfer authority over it.
-- Cross-setup interoperability must use explicit, versioned interfaces. Every payload must identify schema version, units or an explicit dimensionless convention, coordinate frame where relevant, clock or timebase, uncertainty, provenance, and source-of-truth ownership.
-- Do not couple repositories through undocumented globals, copied internal state, visual imitation, or assumptions about another setup's private implementation.
-- There is no universal interface yet. Define only the ports and conversions justified by an actual use case; keep unknowns explicit.
-- OpticalSetup is externally owned and maintained in Luca Genchi's existing repository. Changes there require a focused proposal or pull request and must preserve Luca's ownership and review boundary.
-- Each Setup Universe repository remains independently understandable, testable, and deployable even when it participates in a larger composed experiment.
+Read and update these before changing claims or behavior:
 
-## Prototype boundary
+- `VISION.md`
+- `MOLECULAR_MODEL_CONTRACT.md`
+- `INTERFACE_CONTRACT.md`
+- `CLAIMS_AND_VALIDATION.md`
+- `ACCEPTANCE_TESTS.md`
+- `successor/engine/ENGINE_ABI.md`
 
-- `prototype/` is the immutable reference snapshot associated with production release `20260726T002235Z-478235af2650`, verified on 2026-07-26.
-- The shared snapshot contains multiple Setup Universe demos because the current production deployment is a host-routed common runtime.
-- The snapshot's tests validate only the legacy prototype. They are not acceptance tests for the future MolecularSetup product.
-- Do not infer future APIs or styling from it.
-- Keep the live demo online unless the user explicitly authorizes a replacement deployment.
-- Do not deploy from this repository or change DNS as an incidental consequence of local development.
+`VALIDATION_REPORT.md` records what was actually run. Planned or CI-only tests
+must not be reported as passing before evidence exists.
 
-## Scientific and engineering quality
+## Validation discipline
 
-- Prefer primary scientific references and document modeling assumptions.
-- State coordinate systems, units, signs, time bases, boundary conditions, and solver stability limits.
-- Keep deterministic seeds or reproducible fixtures where stochastic behavior exists.
-- Test invariants and conservation or accounting laws where applicable, not only DOM presence.
-- Validate numerical behavior at parameter extremes and include adversarial or degenerate cases.
-- Distinguish model validation, browser smoke testing, deployment, and public acceptance as separate completion boundaries.
+- Native tests cover collision momentum, deterministic overlap separation,
+  valence, formation/breaking, angular preference, activation gating, energy
+  accounting, deterministic replay, piston motion, confinement, wall load,
+  perceptual motion gates, and all preset outcomes.
+- Real-Wasm tests cover every command/view, zero imports, packed-view bounds,
+  stale pointers, deterministic replay, artifact identity, and invalid input.
+- Browser tests cover populated first paint, atom dragging, spark placement,
+  temperature endpoints, piston gestures, keyboard access, mobile layout,
+  reduced motion, and blocked/corrupt Wasm.
+- Keep the independent Lennard-Jones numerical fixture as a numerical-method
+  discipline check. It does not validate the visible chemistry model.
+- Rebuild Rust/Wasm and run heavyweight browser tests on `devbox-home` or CI.
+  Do not install a large toolchain on a Mac merely to satisfy this repository.
+- The checked-in artifact and manifest must match engine sources by SHA-256,
+  report 2/2, have zero imports, and reproduce byte-for-byte under the pinned
+  toolchain.
+
+## Setup Universe boundary
+
+MolecularSetup owns molecular/material state and response. OpticalSetup owns
+instrument propagation; QuantumSetup owns explicitly quantum evolution.
+Future setup interoperability must use explicit versioned payloads with units
+or declared dimensionless conventions, coordinate frame, timebase,
+uncertainty, provenance, and source-of-truth ownership. Shared family naming is
+not an interface.
 
 ## Working agreement
 
-- Read this file and the repository's current status documents before editing.
-- Preserve unrelated user work and inspect repository state before commits.
-- Keep changes scoped to this repository unless cross-repository work is explicitly requested.
-- Do not push, deploy, publish, message collaborators, or alter external services without authority for that action.
-- When the greenfield rebuild begins, prefer a small end-to-end scientific experiment over a broad mock interface.
+- Inspect worktree and remote state before edits; preserve unrelated and
+  untracked user work, including `.sites-runtime/`.
+- Keep changes in this repository and leave `prototype/` untouched.
+- Do not deploy, change DNS, replace production, or alter external services as
+  an incidental consequence of development.
+- Treat a local source change with a stale Wasm artifact as incomplete, not as
+  a passing candidate.

@@ -46,6 +46,14 @@ jobs:
           npm run engine:build
           git diff --exit-code -- public/engine
 
+      - name: Install browser test runtime
+        working-directory: successor
+        run: npx playwright install --with-deps chromium
+
+      - name: Test causal interactions in Chromium
+        working-directory: successor
+        run: npm run test:browser
+
       - name: Upload GitHub Pages artifact
         if: github.event_name != 'pull_request'
         uses: actions/upload-pages-artifact@v4
