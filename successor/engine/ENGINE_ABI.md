@@ -115,7 +115,9 @@ There are always four records in edge order `0 left`, `1 right`, `2 top`,
 
 Kinds: `1 collision`, `2 bond forming`, `3 bond formed`, `4 bond stressed`,
 `5 bond broken`, `6 spark`, `7 wall impact`, `8 energy pulse`. Lifetimes are
-1.2–2 seconds.
+1.2–2 seconds. The packed view is oldest-to-newest and retains at most 4,096
+live records; overflow discards the oldest record in constant time without
+changing collision counters, ledgers, bonds, atoms, or wall state.
 
 ### Statistics and ledgers (`f64`, stride 28)
 

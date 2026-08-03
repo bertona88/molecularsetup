@@ -87,7 +87,7 @@ out-of-bounds pointers.
 
 | Model state | Required visible evidence |
 |---|---|
-| Collision | momentum change plus a fading impact ring |
+| Collision | momentum change plus a fading impact ring; repetitive crowded impacts may be sampled |
 | Excitation | atom halo plus the arriving spark wave |
 | Bond forming | incomplete/dashed cyan connection and progress |
 | Bond stable | calm continuous light connection; double lane for order 2 |
@@ -96,9 +96,19 @@ out-of-bounds pointers.
 | Formation energy | persistent outward energy pulse and changed motion/excitation |
 | Piston load | finite wall motion, collision response, glow, and flex |
 
-Bonds are drawn after atoms so state remains readable. Event traces remain for
-1.2–2 seconds. Reduced motion removes decorative animation/wobble but retains
-model motion, bond state, spark position, event traces, and outcomes.
+Bonds are drawn after atoms so state remains readable. Events remain in packed
+model state for 1.2–2 seconds. The browser always presents spark, forming,
+formed, stressed, breaking, and energy traces; under crowding it may bound and
+sample only repetitive collision/wall rings while retaining exact collision
+counts, momentum response, and wall load. Reduced motion removes decorative
+animation/wobble but retains model motion, bond state, spark position, causal
+traces, and outcomes.
+
+Atom artwork and the static field may be cached. Excitation glow may use a
+small ordered set of visual levels, and Canvas backing resolution or passive
+redraw cadence may adapt when measured rendering exceeds the frame budget.
+Direct pointer interaction remains full-cadence, and the Rust engine continues
+every deterministic fixed step independently of presentation cadence.
 
 ## Accessibility
 

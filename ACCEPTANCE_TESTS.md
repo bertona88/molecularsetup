@@ -81,6 +81,9 @@
   activation adds exactly one atom.
 - At 390x844 the ingredient tray and heat control remain within the viewport.
 - Reduced-motion media preference is observed without removing causal controls.
+- Ten inserted H2O ingredients remain responsive and running; the crowded
+  presentation selects a bounded backing resolution without changing the
+  resulting atom count or surfacing an engine error.
 - Blocked and corrupt Wasm each display an alert, disable commands, and leave an
   inert world.
 

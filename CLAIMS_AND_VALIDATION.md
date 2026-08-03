@@ -75,7 +75,8 @@ A source-only v2 change with a stale v1 artifact is not a valid candidate.
    and ABI/model identity.
 8. **Browser behavior:** populated first paint, atom drag, spark, temperature
    endpoints, piston drag, ingredient tap/hold, mobile layout, keyboard access,
-   reduced motion, and blocked/corrupt engine failure.
+   reduced motion, crowded-world adaptive presentation, causal-trace retention,
+   and blocked/corrupt engine failure.
 9. **Artifact reproducibility:** pinned locked Rust build, source SHA-256, Wasm
    SHA-256/size, byte-identical rebuild, packaged copy, and static entry.
 

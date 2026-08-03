@@ -32,6 +32,7 @@ npm run dev
 ```sh
 npm run typecheck
 npm run lint
+npm run benchmark:engine
 ```
 
 ## Rust/Wasm and full checks

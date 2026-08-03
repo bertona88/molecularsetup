@@ -33,7 +33,9 @@ is the only piston.
 
 Events persist for 1.2–2 seconds and identify collision, bond formation, bond
 completion, stress, break, spark, wall impact, or energy release. Statistics
-and energy ledgers are internal views, not persistent visual readouts.
+and energy ledgers are internal views, not persistent visual readouts. The live
+event queue is a 4,096-record oldest-first ring; overflow removes only the
+oldest trace record and does not change collision counters or model response.
 
 ## Ingredients, valence, and pair parameters
 

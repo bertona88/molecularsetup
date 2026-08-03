@@ -6,6 +6,7 @@ use crate::model::{
     H_O_H_ANGLE_RADIANS, H_O_H_ANGLE_STIFFNESS, INGREDIENTS, MAX_ATOMS, MAX_SPEED,
     MODEL_VERSION, NEIGHBOR_CELL, WORLD_LIMIT,
 };
+use std::collections::VecDeque;
 
 const ATOM_STRIDE: usize = 16;
 const BOND_STRIDE: usize = 10;
@@ -173,10 +174,13 @@ pub struct World {
     grab: Option<Grab>,
     refractory_pairs: Vec<RefractoryPair>,
     sparks: Vec<SparkWave>,
-    events: Vec<Event>,
+    events: VecDeque<Event>,
     pub atoms: Vec<Atom>,
     pub bonds: Vec<Bond>,
     pub walls: Vec<Wall>,
+    cell_entry_scratch: Vec<CellEntry>,
+    neighbor_pair_scratch: Vec<(usize, usize)>,
+    angular_neighbor_scratch: Vec<[usize; 2]>,
     atom_view: Vec<f32>,
     bond_view: Vec<f32>,
     wall_view: Vec<f32>,
@@ -205,10 +209,13 @@ impl World {
             grab: None,
             refractory_pairs: Vec::new(),
             sparks: Vec::new(),
-            events: Vec::new(),
+            events: VecDeque::new(),
             atoms: Vec::new(),
             bonds: Vec::new(),
             walls: default_walls(),
+            cell_entry_scratch: Vec::new(),
+            neighbor_pair_scratch: Vec::new(),
+            angular_neighbor_scratch: Vec::new(),
             atom_view: Vec::new(),
             bond_view: Vec::new(),
             wall_view: Vec::new(),
@@ -811,27 +818,35 @@ impl World {
     }
 
     fn apply_angular_forces(&mut self) {
-        let mut triplets = Vec::new();
-        for oxygen in 0..self.atoms.len() {
-            if self.atoms[oxygen].element != ELEMENT_O { continue; }
-            let mut hydrogens = Vec::new();
-            for bond in &self.bonds {
-                if bond.state == BOND_BREAKING || bond.progress < 0.45 { continue; }
-                let other = if bond.a == oxygen { Some(bond.b) }
-                    else if bond.b == oxygen { Some(bond.a) } else { None };
-                if let Some(index) = other {
-                    if self.atoms.get(index).map(|atom| atom.element) == Some(ELEMENT_H) {
-                        hydrogens.push(index);
-                    }
-                }
+        let mut neighbors = core::mem::take(&mut self.angular_neighbor_scratch);
+        neighbors.clear();
+        neighbors.resize(self.atoms.len(), [usize::MAX; 2]);
+        for bond in &self.bonds {
+            if bond.state == BOND_BREAKING || bond.progress < 0.45 { continue; }
+            let (oxygen, hydrogen) = if self.atoms.get(bond.a).map(|atom| atom.element) == Some(ELEMENT_O)
+                && self.atoms.get(bond.b).map(|atom| atom.element) == Some(ELEMENT_H)
+            {
+                (bond.a, bond.b)
+            } else if self.atoms.get(bond.b).map(|atom| atom.element) == Some(ELEMENT_O)
+                && self.atoms.get(bond.a).map(|atom| atom.element) == Some(ELEMENT_H)
+            {
+                (bond.b, bond.a)
+            } else {
+                continue;
+            };
+            let pair = &mut neighbors[oxygen];
+            if hydrogen < pair[0] {
+                pair[1] = pair[0];
+                pair[0] = hydrogen;
+            } else if hydrogen != pair[0] && hydrogen < pair[1] {
+                pair[1] = hydrogen;
             }
-            hydrogens.sort_unstable();
-            hydrogens.dedup();
-            if hydrogens.len() >= 2 { triplets.push((hydrogens[0], oxygen, hydrogens[1])); }
         }
 
         let target_cos = H_O_H_ANGLE_RADIANS.cos();
-        for (h1, oxygen, h2) in triplets {
+        for oxygen in 0..neighbors.len() {
+            let [h1, h2] = neighbors[oxygen];
+            if h2 == usize::MAX { continue; }
             let r1x = self.atoms[h1].x - self.atoms[oxygen].x;
             let r1y = self.atoms[h1].y - self.atoms[oxygen].y;
             let r2x = self.atoms[h2].x - self.atoms[oxygen].x;
@@ -859,6 +874,8 @@ impl World {
                 self.potential_energy += angle_preference_energy(cos_angle.acos());
             }
         }
+        neighbors.clear();
+        self.angular_neighbor_scratch = neighbors;
     }
 
     fn integrate_atoms(&mut self) {
@@ -956,7 +973,7 @@ impl World {
     }
 
     pub(crate) fn resolve_atom_collisions_and_form_bonds(&mut self) {
-        let pairs = self.neighbor_pairs();
+        let mut pairs = self.neighbor_pairs();
         let mut bonded: Vec<(usize, usize)> = self.bonds.iter()
             .map(|bond| (bond.a.min(bond.b), bond.a.max(bond.b)))
             .collect();
@@ -966,7 +983,7 @@ impl World {
         let mut encounters = Vec::new();
         let mut collision_events = Vec::new();
 
-        for (a_index, b_index) in pairs {
+        for &(a_index, b_index) in &pairs {
             let key = (a_index.min(b_index), a_index.max(b_index));
             if bonded.binary_search(&key).is_ok() || self.is_refractory(a_index, b_index) { continue; }
             let Some(param) = pair_param(self.atoms[a_index].element, self.atoms[b_index].element) else { continue; };
@@ -1043,6 +1060,8 @@ impl World {
                 });
             }
         }
+        pairs.clear();
+        self.neighbor_pair_scratch = pairs;
 
         for (a, b, x, y, impulse, energy) in collision_events {
             self.collision_count = self.collision_count.saturating_add(1);
@@ -1197,9 +1216,13 @@ impl World {
         });
     }
 
-    fn neighbor_pairs(&self) -> Vec<(usize, usize)> {
-        if self.atoms.len() < 2 { return Vec::new(); }
-        let mut entries = Vec::with_capacity(self.atoms.len());
+    fn neighbor_pairs(&mut self) -> Vec<(usize, usize)> {
+        let mut pairs = core::mem::take(&mut self.neighbor_pair_scratch);
+        pairs.clear();
+        if self.atoms.len() < 2 { return pairs; }
+        let mut entries = core::mem::take(&mut self.cell_entry_scratch);
+        entries.clear();
+        if entries.capacity() < self.atoms.len() { entries.reserve(self.atoms.len()); }
         for (index, atom) in self.atoms.iter().enumerate() {
             entries.push(CellEntry {
                 cx: cell_coordinate(atom.x),
@@ -1208,7 +1231,8 @@ impl World {
             });
         }
         entries.sort_unstable();
-        let mut pairs = Vec::with_capacity(self.atoms.len().saturating_mul(8));
+        let estimated_pairs = self.atoms.len().saturating_mul(8);
+        if pairs.capacity() < estimated_pairs { pairs.reserve(estimated_pairs); }
         for entry in &entries {
             for oy in -1..=1 {
                 for ox in -1..=1 {
@@ -1222,6 +1246,7 @@ impl World {
                 }
             }
         }
+        self.cell_entry_scratch = entries;
         pairs
     }
 
@@ -1291,8 +1316,8 @@ impl World {
     }
 
     fn push_event(&mut self, event: Event) {
-        if self.events.len() >= EVENT_CAPACITY { self.events.remove(0); }
-        self.events.push(event);
+        if self.events.len() >= EVENT_CAPACITY { self.events.pop_front(); }
+        self.events.push_back(event);
     }
 
     pub fn refresh(&mut self) {

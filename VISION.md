@@ -25,8 +25,10 @@ observe closely and alive enough to invite another experiment.
    strain, and energy.
 2. **The molecules are the interface.** Prefer direct manipulation, motion,
    geometry, glow, traces, and timing over panels and readouts.
-3. **Show causal memory.** Collision, spark, bond, energy, and wall traces last
-   1.2–2 seconds. A local spark expands before nearby atoms become excited.
+3. **Show causal memory.** Collision, spark, bond, energy, and wall events last
+   1.2–2 seconds in model state. The presentation always retains state-changing
+   spark/bond/energy traces and may sample only repetitive impact rings in a
+   crowded world. A local spark expands before nearby atoms become excited.
 4. **Parameterize interactions, not products.** Ingredient templates may set
    initial atoms and bonds. No later product graph, reaction lookup, or
    water-production rule chooses outcomes.
@@ -75,6 +77,9 @@ atom.
 - TypeScript owns gestures, camera, accessibility, load failure, and backend
   validation.
 - Canvas2D owns presentation. WebGPU and sound are intentionally out of scope.
+- Canvas2D may cache visual sprites/backgrounds, bound repetitive impact rings,
+  and adapt raster resolution or passive redraw cadence. Those presentation
+  choices never change fixed stepping, packed state, or semantic interaction.
 - Reproducible artifacts are checked against engine-source and Wasm SHA-256
   values.
 

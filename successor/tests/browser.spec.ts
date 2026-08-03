@@ -109,6 +109,23 @@ test("mobile controls remain on-screen and reduced motion retains causal state",
   await expect(page.getByRole("button", { name: "Cancel spark placement" })).toBeVisible();
 });
 
+test("crowded presentation lowers raster cost without stopping chemistry", async ({ page }) => {
+  await openReadyWorld(page);
+  const addWater = page.getByRole("button", {
+    name: "Add one Water molecule. Hold to add a stream.",
+  });
+  for (let index = 0; index < 10; index += 1) await addWater.click();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/32 atoms/, {
+    timeout: 5_000,
+  });
+  await expect.poll(async () => page.locator(".molecular-canvas").evaluate((canvas) => {
+    const element = canvas as HTMLCanvasElement;
+    return element.width / element.getBoundingClientRect().width;
+  })).toBeLessThanOrEqual(1.26);
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Pause simulation" })).toBeVisible();
+});
+
 for (const failure of ["blocked", "corrupt"] as const) {
   test(`${failure} Wasm leaves an explicit inert world`, async ({ page }) => {
     await page.route("**/engine/molecularsetup_engine.wasm", async (route) => {

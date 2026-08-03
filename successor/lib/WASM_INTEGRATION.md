@@ -55,6 +55,15 @@ Reduced motion removes decorative state wobble and repeated CSS pulses but does
 not remove model motion, excitation, bond state, traces, piston response, or
 outcomes.
 
+The calm field is cached until viewport/camera state changes, and atom artwork
+is cached by element, zoom radius, grabbed state, pixel ratio, and one of eight
+ordered excitation-glow levels. Stable bonds avoid dynamic blur. State-changing
+event traces are never presentation-thinned; only repetitive collision/wall
+rings are end-aligned sampled above the crowded-world budget. `App.tsx` may
+adapt Canvas backing resolution and passive redraw cadence from measured render
+cost, but active pointer interaction stays full-cadence and every Rust fixed
+step still executes.
+
 ## Presentation-only catalog
 
 `molecular-catalog.ts` freezes ingredient ids `H=0`, `O=1`, `H2=2`, `O2=3`,

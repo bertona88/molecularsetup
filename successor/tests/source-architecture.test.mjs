@@ -48,6 +48,12 @@ test("browser remains a fail-closed Wasm presentation and gesture shell", async 
   assert.match(adapter, /private\s+refreshViews\(\):\s*void/);
   assert.match(adapter, /this\.refreshViews\(\);/);
   assert.match(adapter, /statusValue\s*=\s*"error"/);
+  assert.match(adapter, /ATOM_SPRITE_CACHE_LIMIT\s*=\s*160/);
+  assert.match(adapter, /IMPACT_TRACE_BUDGET\s*=\s*96/);
+  assert.match(adapter, /renderCachedField/);
+  assert.match(adapter, /private\s+atomSprite\s*\(/);
+  assert.match(app, /smoothedRenderMilliseconds/);
+  assert.match(app, /frameDivisor/);
 });
 
 test("v2 catalog is exactly H, O, H2, O2, and H2O", async () => {

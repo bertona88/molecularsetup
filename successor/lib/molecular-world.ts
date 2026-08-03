@@ -1,5 +1,6 @@
 import {
   type ElementKey,
+  type ElementPresentation,
   type EngineIngredientId,
   type Ingredient,
   type IngredientKey,
@@ -27,6 +28,10 @@ const BOND_STRIDE = 10;
 const WALL_STRIDE = 10;
 const EVENT_STRIDE = 10;
 const STATS_STRIDE = 28;
+
+const IMPACT_TRACE_BUDGET = 96;
+const ATOM_GLOW_LEVELS = 8;
+const ATOM_SPRITE_CACHE_LIMIT = 160;
 
 const ATOM_ID = 0;
 const ATOM_ELEMENT = 1;
@@ -111,6 +116,22 @@ const STAT_LEDGER_TOTAL = 27;
 
 const EMPTY_F32: Float32Array<ArrayBufferLike> = new Float32Array(0);
 const EMPTY_F64: Float64Array<ArrayBufferLike> = new Float64Array(0);
+
+type FieldCache = {
+  canvas: HTMLCanvasElement;
+  width: number;
+  height: number;
+  pixelRatio: number;
+  cameraX: number;
+  cameraY: number;
+  zoom: number;
+};
+
+type AtomSprite = {
+  canvas: HTMLCanvasElement;
+  extent: number;
+  size: number;
+};
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
@@ -304,6 +325,8 @@ export class MolecularWorld {
   private presentationSeed: number;
   private presentationExperiment: ExperimentKey;
   private grabTarget: { atomId: number; x: number; y: number } | null = null;
+  private fieldCache: FieldCache | null = null;
+  private readonly atomSpriteCache = new Map<string, AtomSprite>();
 
   constructor(options: MolecularWorldOptions = {}) {
     this.wasmUrl = options.wasmUrl ?? ENGINE_WASM_URL;
@@ -410,8 +433,13 @@ export class MolecularWorld {
 
   setViewport(width: number, height: number): void {
     if (!finite(width) || !finite(height)) return;
-    this.viewportWidth = Math.max(1, width);
-    this.viewportHeight = Math.max(1, height);
+    const nextWidth = Math.max(1, width);
+    const nextHeight = Math.max(1, height);
+    if (nextWidth !== this.viewportWidth || nextHeight !== this.viewportHeight) {
+      this.fieldCache = null;
+    }
+    this.viewportWidth = nextWidth;
+    this.viewportHeight = nextHeight;
   }
 
   screenToWorld(screenX: number, screenY: number) {
@@ -640,16 +668,66 @@ export class MolecularWorld {
   render(context: CanvasRenderingContext2D, reducedMotion: boolean): void {
     const width = this.viewportWidth;
     const height = this.viewportHeight;
+    const pixelRatio = clamp(Math.abs(context.getTransform().a) || 1, 0.5, 4);
     context.clearRect(0, 0, width, height);
-    this.renderField(context, width, height);
+    this.renderCachedField(context, width, height, pixelRatio);
     this.renderContainerInterior(context);
     if (this.statusValue === "ready") {
       this.renderEventTraces(context, reducedMotion);
       this.renderGrabTether(context);
-      this.renderAtoms(context, width, height);
-      this.renderBondsAboveAtoms(context, width, height, reducedMotion);
+      this.renderAtoms(context, width, height, pixelRatio);
+      this.renderBondsAboveAtoms(context, width, height, reducedMotion, performance.now());
       this.renderWalls(context);
     }
+  }
+
+  private renderCachedField(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    pixelRatio: number,
+  ): void {
+    const cached = this.fieldCache;
+    if (
+      cached &&
+      cached.width === width &&
+      cached.height === height &&
+      cached.pixelRatio === pixelRatio &&
+      cached.cameraX === this.camera.x &&
+      cached.cameraY === this.camera.y &&
+      cached.zoom === this.camera.zoom
+    ) {
+      context.drawImage(cached.canvas, 0, 0, width, height);
+      return;
+    }
+
+    const ownerDocument = context.canvas instanceof HTMLCanvasElement
+      ? context.canvas.ownerDocument
+      : globalThis.document;
+    if (!ownerDocument) {
+      this.renderField(context, width, height);
+      return;
+    }
+    const canvas = ownerDocument.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(width * pixelRatio));
+    canvas.height = Math.max(1, Math.round(height * pixelRatio));
+    const fieldContext = canvas.getContext("2d", { alpha: false });
+    if (!fieldContext) {
+      this.renderField(context, width, height);
+      return;
+    }
+    fieldContext.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0);
+    this.renderField(fieldContext, width, height);
+    this.fieldCache = {
+      canvas,
+      width,
+      height,
+      pixelRatio,
+      cameraX: this.camera.x,
+      cameraY: this.camera.y,
+      zoom: this.camera.zoom,
+    };
+    context.drawImage(canvas, 0, 0, width, height);
   }
 
   private renderField(context: CanvasRenderingContext2D, width: number, height: number): void {
@@ -697,8 +775,19 @@ export class MolecularWorld {
   }
 
   private renderEventTraces(context: CanvasRenderingContext2D, reducedMotion: boolean): void {
+    let impactCount = 0;
     for (let offset = 0; offset < this.eventsView.length; offset += EVENT_STRIDE) {
       const kind = Math.trunc(this.eventsView[offset + EVENT_KIND]);
+      if (kind === EVENT_COLLISION || kind === EVENT_WALL) impactCount += 1;
+    }
+    const impactStride = Math.max(1, Math.ceil(impactCount / IMPACT_TRACE_BUDGET));
+    let impactIndex = 0;
+    for (let offset = 0; offset < this.eventsView.length; offset += EVENT_STRIDE) {
+      const kind = Math.trunc(this.eventsView[offset + EVENT_KIND]);
+      if (kind === EVENT_COLLISION || kind === EVENT_WALL) {
+        impactIndex += 1;
+        if (impactStride > 1 && (impactCount - impactIndex) % impactStride !== 0) continue;
+      }
       const x = this.eventsView[offset + EVENT_X];
       const y = this.eventsView[offset + EVENT_Y];
       const magnitude = this.eventsView[offset + EVENT_MAGNITUDE];
@@ -710,6 +799,17 @@ export class MolecularWorld {
       if (progress >= 1) continue;
       const screen = this.worldToScreen(x, y);
       const fade = 1 - progress;
+      const visibleRadius = kind === EVENT_SPARK
+        ? Math.abs(magnitude) * this.camera.zoom
+        : 72 * this.camera.zoom;
+      if (
+        screen.x + visibleRadius < 0 ||
+        screen.x - visibleRadius > this.viewportWidth ||
+        screen.y + visibleRadius < 0 ||
+        screen.y - visibleRadius > this.viewportHeight
+      ) {
+        continue;
+      }
       context.save();
 
       if (kind === EVENT_SPARK) {
@@ -779,7 +879,12 @@ export class MolecularWorld {
     context.restore();
   }
 
-  private renderAtoms(context: CanvasRenderingContext2D, width: number, height: number): void {
+  private renderAtoms(
+    context: CanvasRenderingContext2D,
+    width: number,
+    height: number,
+    pixelRatio: number,
+  ): void {
     for (let offset = 0; offset < this.atomsView.length; offset += ATOM_STRIDE) {
       const element = elementPresentation(Math.trunc(this.atomsView[offset + ATOM_ELEMENT]));
       if (!element) continue;
@@ -801,38 +906,21 @@ export class MolecularWorld {
       }
 
       const excitationGlow = clamp(excitation / 180, 0, 1);
-      if (excitationGlow > 0.015 || grabbed) {
-        const halo = context.createRadialGradient(
-          screen.x,
-          screen.y,
-          radius,
-          screen.x,
-          screen.y,
-          radius * (2.2 + excitationGlow),
-        );
-        halo.addColorStop(0, grabbed ? "rgba(255, 221, 124, .5)" : element.glow);
-        halo.addColorStop(1, "rgba(0,0,0,0)");
-        context.fillStyle = halo;
-        context.beginPath();
-        context.arc(screen.x, screen.y, radius * (2.2 + excitationGlow), 0, Math.PI * 2);
-        context.fill();
-      }
-
-      context.save();
-      context.shadowColor = grabbed ? "rgba(255, 218, 120, .85)" : element.glow;
-      context.shadowBlur = grabbed ? 14 : 4 + excitationGlow * 15;
-      context.fillStyle = element.rim;
-      context.beginPath();
-      context.arc(screen.x, screen.y, radius + 1.35, 0, Math.PI * 2);
-      context.fill();
-      context.fillStyle = element.color;
-      context.beginPath();
-      context.arc(screen.x, screen.y, radius, 0, Math.PI * 2);
-      context.fill();
-      context.fillStyle = "rgba(255, 255, 255, .55)";
-      context.beginPath();
-      context.arc(screen.x - radius * 0.3, screen.y - radius * 0.34, Math.max(1.1, radius * 0.2), 0, Math.PI * 2);
-      context.fill();
+      const sprite = this.atomSprite(
+        context,
+        element,
+        radius,
+        excitationGlow,
+        grabbed,
+        pixelRatio,
+      );
+      context.drawImage(
+        sprite.canvas,
+        screen.x - sprite.extent,
+        screen.y - sprite.extent,
+        sprite.size,
+        sprite.size,
+      );
       if (speed > 40) {
         context.strokeStyle = `rgba(172, 226, 241, ${clamp((speed - 40) / 120, 0, 0.28)})`;
         context.lineWidth = 1;
@@ -844,8 +932,94 @@ export class MolecularWorld {
         );
         context.stroke();
       }
-      context.restore();
     }
+  }
+
+  private atomSprite(
+    context: CanvasRenderingContext2D,
+    element: ElementPresentation,
+    radius: number,
+    excitationGlow: number,
+    grabbed: boolean,
+    pixelRatio: number,
+  ): AtomSprite {
+    const radiusBucket = Math.round(radius * 2) / 2;
+    const glowLevel = excitationGlow <= 0.015
+      ? 0
+      : Math.max(1, Math.round(excitationGlow * (ATOM_GLOW_LEVELS - 1)));
+    const glow = glowLevel / (ATOM_GLOW_LEVELS - 1);
+    const ratioBucket = Math.round(pixelRatio * 100) / 100;
+    const key = `${element.id}:${radiusBucket}:${glowLevel}:${grabbed ? 1 : 0}:${ratioBucket}`;
+    const cached = this.atomSpriteCache.get(key);
+    if (cached) {
+      this.atomSpriteCache.delete(key);
+      this.atomSpriteCache.set(key, cached);
+      return cached;
+    }
+
+    const ownerDocument = context.canvas instanceof HTMLCanvasElement
+      ? context.canvas.ownerDocument
+      : globalThis.document;
+    if (!ownerDocument) {
+      throw new MolecularEngineError("Canvas presentation requires a document-backed surface.");
+    }
+    const shadowBlur = grabbed ? 14 : 4 + glow * 15;
+    const haloRadius = glowLevel > 0 || grabbed ? radiusBucket * (2.2 + glow) : 0;
+    const extent = Math.ceil(Math.max(haloRadius, radiusBucket + 2 + shadowBlur * 1.5) + 2);
+    const size = extent * 2;
+    const canvas = ownerDocument.createElement("canvas");
+    canvas.width = Math.max(1, Math.ceil(size * ratioBucket));
+    canvas.height = Math.max(1, Math.ceil(size * ratioBucket));
+    const spriteContext = canvas.getContext("2d");
+    if (!spriteContext) {
+      throw new MolecularEngineError("Canvas presentation could not allocate an atom sprite.");
+    }
+    spriteContext.setTransform(ratioBucket, 0, 0, ratioBucket, 0, 0);
+    if (haloRadius > 0) {
+      const halo = spriteContext.createRadialGradient(
+        extent,
+        extent,
+        radiusBucket,
+        extent,
+        extent,
+        haloRadius,
+      );
+      halo.addColorStop(0, grabbed ? "rgba(255, 221, 124, .5)" : element.glow);
+      halo.addColorStop(1, "rgba(0,0,0,0)");
+      spriteContext.fillStyle = halo;
+      spriteContext.beginPath();
+      spriteContext.arc(extent, extent, haloRadius, 0, Math.PI * 2);
+      spriteContext.fill();
+    }
+    spriteContext.shadowColor = grabbed ? "rgba(255, 218, 120, .85)" : element.glow;
+    spriteContext.shadowBlur = shadowBlur;
+    spriteContext.fillStyle = element.rim;
+    spriteContext.beginPath();
+    spriteContext.arc(extent, extent, radiusBucket + 1.35, 0, Math.PI * 2);
+    spriteContext.fill();
+    spriteContext.shadowBlur = 0;
+    spriteContext.fillStyle = element.color;
+    spriteContext.beginPath();
+    spriteContext.arc(extent, extent, radiusBucket, 0, Math.PI * 2);
+    spriteContext.fill();
+    spriteContext.fillStyle = "rgba(255, 255, 255, .55)";
+    spriteContext.beginPath();
+    spriteContext.arc(
+      extent - radiusBucket * 0.3,
+      extent - radiusBucket * 0.34,
+      Math.max(1.1, radiusBucket * 0.2),
+      0,
+      Math.PI * 2,
+    );
+    spriteContext.fill();
+
+    const sprite = { canvas, extent, size };
+    this.atomSpriteCache.set(key, sprite);
+    if (this.atomSpriteCache.size > ATOM_SPRITE_CACHE_LIMIT) {
+      const oldest = this.atomSpriteCache.keys().next().value;
+      if (oldest !== undefined) this.atomSpriteCache.delete(oldest);
+    }
+    return sprite;
   }
 
   private renderBondsAboveAtoms(
@@ -853,6 +1027,7 @@ export class MolecularWorld {
     width: number,
     height: number,
     reducedMotion: boolean,
+    animationTime: number,
   ): void {
     for (let offset = 0; offset < this.bondsView.length; offset += BOND_STRIDE) {
       const id = this.bondsView[offset + BOND_ID];
@@ -914,11 +1089,11 @@ export class MolecularWorld {
         state === BOND_STRESSED || state === BOND_BREAKING
           ? "rgba(255, 104, 77, .75)"
           : "rgba(91, 234, 221, .62)";
-      context.shadowBlur = state === BOND_STABLE ? 5 : 11;
+      context.shadowBlur = state === BOND_STABLE ? 0 : 7;
       if (state === BOND_FORMING) context.setLineDash([3 + progress * 5, 7 - progress * 3]);
       if (state === BOND_BREAKING) context.setLineDash([8 * opacity, 7 + (1 - opacity) * 9]);
       if (state === BOND_STRESSED && !reducedMotion) {
-        const wobble = Math.sin(id * 2.4 + performance.now() * 0.018) * 1.8 * strainLevel;
+        const wobble = Math.sin(id * 2.4 + animationTime * 0.018) * 1.8 * strainLevel;
         this.strokeBondLine(context, start.x + nx * wobble, start.y + ny * wobble, end.x - nx * wobble, end.y - ny * wobble, order, separation, nx, ny);
       } else {
         this.strokeBondLine(context, start.x, start.y, end.x, end.y, order, separation, nx, ny);
@@ -938,11 +1113,17 @@ export class MolecularWorld {
     nx: number,
     ny: number,
   ): void {
-    const lanes = order === 2 ? [-separation, separation] : [0];
-    for (const lane of lanes) {
+    if (order === 2) {
+      for (const lane of [-separation, separation]) {
+        context.beginPath();
+        context.moveTo(x1 + nx * lane, y1 + ny * lane);
+        context.lineTo(x2 + nx * lane, y2 + ny * lane);
+        context.stroke();
+      }
+    } else {
       context.beginPath();
-      context.moveTo(x1 + nx * lane, y1 + ny * lane);
-      context.lineTo(x2 + nx * lane, y2 + ny * lane);
+      context.moveTo(x1, y1);
+      context.lineTo(x2, y2);
       context.stroke();
     }
   }

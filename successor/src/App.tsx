@@ -56,6 +56,24 @@ const clamp = (value: number, minimum: number, maximum: number) =>
 const distance = (x1: number, y1: number, x2: number, y2: number) =>
   Math.hypot(x2 - x1, y2 - y1);
 
+const presentationQuality = (
+  devicePixelRatio: number,
+  atomCount: number,
+  smoothedRenderMilliseconds: number,
+) => {
+  let pixelRatioCap = atomCount >= 160 ? 1 : atomCount >= 30 ? 1.25 : 1.5;
+  if (smoothedRenderMilliseconds > 12) pixelRatioCap = Math.min(pixelRatioCap, 1.25);
+  if (smoothedRenderMilliseconds > 18) pixelRatioCap = 1;
+  const crowdedFrameDivisor = atomCount >= 600 ? 3 : atomCount >= 96 ? 2 : 1;
+  return {
+    pixelRatio: Math.max(0.75, Math.min(devicePixelRatio || 1, pixelRatioCap)),
+    frameDivisor: Math.max(
+      crowdedFrameDivisor,
+      smoothedRenderMilliseconds > 18 && atomCount >= 24 ? 2 : 1,
+    ),
+  };
+};
+
 function IngredientThumbnail({ ingredient }: { ingredient: Ingredient }) {
   const points = ingredient.atoms.map((atom) => ({
     ...atom,
@@ -204,25 +222,55 @@ export default function Home() {
         setWorldSummary(world.summary());
       });
 
-    const resize = () => {
+    let smoothedRenderMilliseconds = 0;
+    let appliedPixelRatio = 0;
+    let lastResolutionChange = -Infinity;
+    const resize = (pixelRatio?: number) => {
       const rect = canvas.getBoundingClientRect();
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.75);
+      const dpr = pixelRatio ?? presentationQuality(
+        window.devicePixelRatio || 1,
+        world.atomCount,
+        smoothedRenderMilliseconds,
+      ).pixelRatio;
       canvas.width = Math.max(1, Math.round(rect.width * dpr));
       canvas.height = Math.max(1, Math.round(rect.height * dpr));
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       world.setViewport(rect.width, rect.height);
+      appliedPixelRatio = dpr;
     };
     resize();
-    const resizeObserver = new ResizeObserver(resize);
+    const resizeObserver = new ResizeObserver(() => resize());
     resizeObserver.observe(canvas);
 
     let previous = performance.now();
     let summaryClock = 0;
+    let frameIndex = 0;
     const frame = (now: number) => {
       const elapsedMilliseconds = Math.min(50, now - previous);
       previous = now;
       if (world.playing) issueWorldCommand((activeWorld) => activeWorld.advance(elapsedMilliseconds));
-      world.render(context, reducedMotion);
+      const quality = presentationQuality(
+        window.devicePixelRatio || 1,
+        world.atomCount,
+        smoothedRenderMilliseconds,
+      );
+      if (
+        Math.abs(quality.pixelRatio - appliedPixelRatio) >= 0.2 &&
+        now - lastResolutionChange >= 1_200
+      ) {
+        resize(quality.pixelRatio);
+        lastResolutionChange = now;
+      }
+      const interacting = activePointersRef.current.size > 0 || ingredientDragRef.current !== null;
+      if (interacting || frameIndex % quality.frameDivisor === 0) {
+        const renderStart = performance.now();
+        world.render(context, reducedMotion);
+        const renderMilliseconds = performance.now() - renderStart;
+        smoothedRenderMilliseconds = smoothedRenderMilliseconds === 0
+          ? renderMilliseconds
+          : smoothedRenderMilliseconds * 0.92 + renderMilliseconds * 0.08;
+      }
+      frameIndex += 1;
       summaryClock += elapsedMilliseconds;
       if (summaryClock >= 700) {
         updateSummary();

@@ -15,6 +15,7 @@
     "test:engine": "npm run engine:verify && node --test tests/engine-abi.test.mjs",
     "test:engine:native": "cargo test --manifest-path engine/Cargo.toml --locked --offline",
     "test:browser": "playwright test",
+    "benchmark:engine": "node scripts/benchmark-engine.mjs",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "typecheck": "tsc --noEmit",
     "lint": "eslint ."
