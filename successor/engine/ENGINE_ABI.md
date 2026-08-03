@@ -1,14 +1,15 @@
-# MolecularSetup engine ABI v2
+# MolecularSetup engine ABI v3
 
 ## Scope
 
 This crate is a deterministic, reduced-unit, two-dimensional bonding teaching
-model. It is non-predictive chemistry and has no reaction/product lookup. The
+model spanning the Water, generic Polymers, and Everything systems. It is
+non-predictive chemistry/materials intuition and has no reaction/product lookup. The
 ABI is dependency-free C/Wasm: a `wasm32-unknown-unknown` release exports
 linear `memory`, imports nothing, and owns one module-global world.
 
-ABI v2 is intentionally incompatible with v1. Both `ms_abi_version()` and
-`ms_model_version()` return `2`.
+ABI v3 is intentionally incompatible with v2. Both `ms_abi_version()` and
+`ms_model_version()` return `3`.
 
 ## Commands
 
@@ -18,7 +19,7 @@ time, and piston target are `f64`.
 | Export | Result |
 |---|---|
 | `ms_reset(seed)` | Recreate the seeded populated Make a bond world. |
-| `ms_load_experiment(id)` | Load `0 Make`, `1 Break`, `2 Ignite`, or `3 Free play`; return `1`, else `0`. |
+| `ms_load_experiment(id)` | Load Water ids `0 Make`, `1 Break`, `2 Ignite`, `3 Free`; Polymer ids `4 Grow`, `5 Stretch`, `6 Free`; or `7 Everything`; return `1`, else `0`. |
 | `ms_set_playing(0_or_1)` | Pause/resume browser-time advance. |
 | `ms_set_temperature(u)` | Clamp semantic heat to `[0,1]`. |
 | `ms_spawn_ingredient(id,count,x,y)` | Insert whole ingredients and return accepted count. |
@@ -30,8 +31,10 @@ time, and piston target are `f64`.
 | `ms_advance(real_delta_ms)` | Execute at most five accumulated fixed steps; return executed count. |
 | `ms_step_fixed(count)` | Execute exactly `count` fixed steps for replay/tests. |
 
-Ingredient ids are `0 H`, `1 O`, `2 H2`, `3 O2`, `4 H2O`. Count always means
-whole templates and is limited by the 18,000-atom capacity.
+Ingredient ids are `0 H`, `1 O`, `2 H2`, `3 O2`, `4 H2O`, `5 generic M2
+monomer`, and `6 generic X junction`. Count always means whole templates and is
+limited by the 18,000-site capacity. M and X are generic model sites, not
+chemical elements.
 
 Every command can grow memory or replace a packed vector. It invalidates every
 previous pointer and JavaScript typed-array view. Reacquire all views after
@@ -53,7 +56,7 @@ views may use pointer `0`; stats always contains one complete `f64` record.
 | Index | Meaning |
 |---:|---|
 | 0 | stable atom id |
-| 1 | element (`0 H`, `1 O`) |
+| 1 | site kind (`0 H`, `1 O`, `2 generic M`, `3 generic X`) |
 | 2–3 | x, y |
 | 4–5 | previous x, y |
 | 6–7 | vx, vy |
@@ -145,8 +148,8 @@ changing collision counters, ledgers, bonds, atoms, or wall state.
 | 19 | atom capacity |
 | 20 | rejected ingredient count |
 | 21 | experiment id |
-| 22 | model version (`2`) |
-| 23 | ABI version (`2`) |
+| 22 | model version (`3`) |
+| 23 | ABI version (`3`) |
 | 24 | spark count |
 | 25 | collision count |
 | 26 | mean rolling wall load |
@@ -162,8 +165,9 @@ conservative energy claim.
 
 ## Model boundary
 
-The exact reduced rules, compressed H/O masses, collision response, valence,
-pair parameters, activation, angular preference, excitation, thermostat,
-piston, and ledgers are documented in `../../MOLECULAR_MODEL_CONTRACT.md`.
-Packed chemistry-like topology is not evidence of a real pathway, product,
-rate, equilibrium, temperature, pressure, or mechanism.
+The exact reduced rules, compressed H/O masses, generic M/X sites, collision
+response, valence, pair parameters, activation, angular preference, excitation,
+thermostat, piston, and ledgers are documented in
+`../../MOLECULAR_MODEL_CONTRACT.md`. Packed topology is not evidence of a real
+pathway, product, polymer, rate, equilibrium, temperature, pressure, mechanism,
+or material property.

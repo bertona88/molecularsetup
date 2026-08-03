@@ -2,7 +2,7 @@
 
 ## Native Rust gate
 
-- ABI/model constants are exactly `2/2`; reset opens the populated Make a bond
+- ABI/model constants are exactly `3/3`; reset opens the populated Make a bond
   preset inside a four-wall container.
 - A nonbonded atom collision conserves total linear momentum within the named
   tolerance and changes normal velocities.
@@ -30,6 +30,12 @@
   wall load/impact and positive wall work, and remains finite.
 - Hot RMS motion is at least five times cold motion after one second.
 - Oxygen displacement is visible at Warm and larger at Hot after one second.
+- Grow a chain begins with eight separate generic M2 monomers and forms one
+  connected 16-site chain within one second.
+- Stretch a chain begins as one 16-site chain and spring dragging makes at
+  least one link visibly stressed, breaking, or broken.
+- Polymer Free play accepts M2 monomers and X junctions without exceeding M
+  valence 2 or X valence 3; Everything contains both H/O and M/X families.
 - Invalid experiments, ingredients, non-finite sparks/targets, and oversized
   frame deltas fail safely; browser advance remains capped at five steps.
 - The independent Lennard-Jones fixture continues to pass its documented
@@ -37,7 +43,7 @@
 
 ## Real-Wasm gate
 
-- The release module has zero imports and exports memory plus every v2 command:
+- The release module has zero imports and exports memory plus every v3 command:
   reset, load experiment, play/pause, temperature, spawn ingredient, spark,
   grab, drag, release, piston target, frame advance, and exact fixed stepping.
 - Atom stride 16 exposes id, H/O, position/history, velocity, radius,
@@ -48,8 +54,9 @@
   load, impact, target, and the single movable flag.
 - Event stride 10 exposes kinds 1–8, endpoints, location, magnitude, age,
   1.2–2 second lifetime, event energy, and wall id.
-- Statistics stride 28 agrees with view counts and reports model/ABI `2/2`.
-- Every experiment and ingredient id has the exact documented atom/bond count.
+- Statistics stride 28 agrees with view counts and reports model/ABI `3/3`.
+- All eight experience ids and seven ingredient ids have the exact documented
+  atom/bond count.
 - Spark, atom grab/drag/release, and piston targeting mutate their packed views
   as documented.
 - Repeated non-step mutations leave a forming bond's state/progress/age and
@@ -60,18 +67,21 @@
   statistics arrays.
 - Invalid ids and non-finite values return failure without corrupting views;
   corrupt Wasm cannot compile.
-- The public bytes match manifest SHA-256/size and manifest ABI/model `2/2`.
+- The public bytes match manifest SHA-256/size and manifest ABI/model `3/3`.
 
 ## Static and browser application gate
 
 - TypeScript typecheck and lint pass without a JavaScript physics, bond,
   thermal-randomness, reaction, or fallback implementation.
-- The v2 catalog is exactly H, O, H2, O2, H2O in numeric id order `0..4`.
-- The static page presents four modes, one-at-a-time ingredients, hold stream,
-  Spark, play/pause, reset, piston cue, and a horizontal Cold/Warm/Hot control.
+- The v3 catalog keeps H, O, H2, O2, H2O at ids `0..4` and adds generic M2 and
+  X at ids `5..6`.
+- The static page presents Water, Polymers, and Everything; their scoped
+  experiences and ingredient shelves; one-at-a-time insertion; hold stream;
+  Spark; play/pause; reset; piston cue; and horizontal Cold/Warm/Hot.
 - It contains no quantity slider, dashboard, inspector, persistent numerical
   readout, reaction recipe, kelvin, or pascal label.
-- A Chromium run waits for populated first paint and verifies all four modes.
+- A Chromium run waits for populated first paint, verifies all three systems,
+  and observes Grow a chain reach 15 bonds from eight separate monomers.
 - Pointer dragging at the reference H position exercises the atom-grab path.
 - Ignite spark placement arms, commits locally, disarms, and produces excited
   or breaking summary state.
@@ -79,7 +89,8 @@
 - Piston pointer dragging executes without engine failure.
 - Space toggles play/pause; `S`/Escape arm/cancel Spark; keyboard ingredient
   activation adds exactly one atom.
-- At 390x844 the ingredient tray and heat control remain within the viewport.
+- At 390x844 the system switcher, experience switcher, ingredient tray, and
+  heat control remain within the viewport.
 - Reduced-motion media preference is observed without removing causal controls.
 - Ten inserted H2O ingredients remain responsive and running; the crowded
   presentation selects a bounded backing resolution without changing the

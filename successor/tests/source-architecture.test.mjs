@@ -32,8 +32,8 @@ test("browser remains a fail-closed Wasm presentation and gesture shell", async 
   assert.match(app, /setInterval\(streamCurrentIngredient,\s*145\)/);
   assert.match(app, /if\s*\(world\.playing\)\s*issueWorldCommand/);
 
-  assert.match(adapter, /ENGINE_ABI_VERSION\s*=\s*2/);
-  assert.match(adapter, /ENGINE_MODEL_VERSION\s*=\s*2/);
+  assert.match(adapter, /ENGINE_ABI_VERSION\s*=\s*3/);
+  assert.match(adapter, /ENGINE_MODEL_VERSION\s*=\s*3/);
   for (const command of [
     "ms_load_experiment",
     "ms_spawn_ingredient",
@@ -56,7 +56,7 @@ test("browser remains a fail-closed Wasm presentation and gesture shell", async 
   assert.match(app, /frameDivisor/);
 });
 
-test("v2 catalog is exactly H, O, H2, O2, and H2O", async () => {
+test("v3 catalog keeps water intact and adds generic polymer ingredients", async () => {
   const source = await readFile(catalogUrl, "utf8");
   const expected = [
     ["hydrogenAtom", 0],
@@ -64,6 +64,8 @@ test("v2 catalog is exactly H, O, H2, O2, and H2O", async () => {
     ["hydrogen", 2],
     ["oxygen", 3],
     ["water", 4],
+    ["monomer", 5],
+    ["junction", 6],
   ];
   const idBlock = source.match(/export const ENGINE_INGREDIENT_ID\s*=\s*\{([\s\S]*?)\}\s*as const;/);
   assert.ok(idBlock);
@@ -72,7 +74,7 @@ test("v2 catalog is exactly H, O, H2, O2, and H2O", async () => {
   );
   assert.deepEqual(ids, expected);
   const formulas = [...source.matchAll(/^\s{4}formula:\s*"([^"]+)",\s*$/gm)].map((match) => match[1]);
-  assert.deepEqual(formulas, ["H", "O", "H₂", "O₂", "H₂O"]);
+  assert.deepEqual(formulas, ["H", "O", "H₂", "O₂", "H₂O", "M₂", "X"]);
   assert.doesNotMatch(source, /methane|ammonia|carbon dioxide|sodium|chloride/i);
 });
 

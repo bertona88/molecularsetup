@@ -8,7 +8,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
-import { ELEMENTS, INGREDIENTS, type Ingredient } from "@/lib/molecular-catalog";
+import {
+  ELEMENTS,
+  INGREDIENTS,
+  type Ingredient,
+  type IngredientKey,
+} from "@/lib/molecular-catalog";
 import {
   MolecularWorld,
   type EngineLoadStatus,
@@ -38,17 +43,67 @@ type PinchGesture = {
   anchorY: number;
 };
 
-const EXPERIMENTS: readonly {
+type SystemKey = "water" | "polymer" | "everything";
+
+type ExperienceDefinition = Readonly<{
   id: ExperimentKey;
   label: string;
   cue: string;
   temperature: number;
-}[] = [
-  { id: "makeBond", label: "Make a bond", cue: "Let two atoms meet", temperature: 0 },
-  { id: "breakBond", label: "Break a bond", cue: "Pull it apart or turn up the heat", temperature: 36 },
-  { id: "ignite", label: "Ignite", cue: "Stable until a spark arrives", temperature: 26 },
-  { id: "freePlay", label: "Free play", cue: "Mix, heat, spark, drag, compress", temperature: 38 },
+}>;
+
+type SystemDefinition = Readonly<{
+  id: SystemKey;
+  label: string;
+  shortLabel: string;
+  ingredients: readonly IngredientKey[];
+  experiences: readonly ExperienceDefinition[];
+}>;
+
+const SYSTEMS: readonly SystemDefinition[] = [
+  {
+    id: "water",
+    label: "Water",
+    shortLabel: "H₂O",
+    ingredients: ["hydrogenAtom", "oxygenAtom", "hydrogen", "oxygen", "water"],
+    experiences: [
+      { id: "makeBond", label: "Make a bond", cue: "Let two atoms meet", temperature: 0 },
+      { id: "breakBond", label: "Break a bond", cue: "Pull it apart or turn up the heat", temperature: 36 },
+      { id: "ignite", label: "Ignite", cue: "Stable until a spark arrives", temperature: 26 },
+      { id: "freePlay", label: "Free play", cue: "Mix, heat, spark, drag, compress", temperature: 38 },
+    ],
+  },
+  {
+    id: "polymer",
+    label: "Polymers",
+    shortLabel: "—M—",
+    ingredients: ["monomer", "junction"],
+    experiences: [
+      { id: "growChain", label: "Grow a chain", cue: "Watch the links close", temperature: 32 },
+      { id: "stretchChain", label: "Stretch a chain", cue: "Pull either end", temperature: 18 },
+      { id: "polymerFreePlay", label: "Free play", cue: "Add, heat, spark, compress", temperature: 42 },
+    ],
+  },
+  {
+    id: "everything",
+    label: "Everything",
+    shortLabel: "∞",
+    ingredients: [
+      "hydrogenAtom",
+      "oxygenAtom",
+      "hydrogen",
+      "oxygen",
+      "water",
+      "monomer",
+      "junction",
+    ],
+    experiences: [
+      { id: "everything", label: "Free play", cue: "Every ingredient, one sandbox", temperature: 40 },
+    ],
+  },
 ];
+
+const EXPERIMENTS = SYSTEMS.flatMap((system) => system.experiences);
 
 const clamp = (value: number, minimum: number, maximum: number) =>
   Math.min(maximum, Math.max(minimum, value));
@@ -167,6 +222,7 @@ export default function Home() {
   const streamIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const animationRef = useRef<number | null>(null);
   const [engineStatus, setEngineStatus] = useState<EngineLoadStatus>("idle");
+  const [system, setSystem] = useState<SystemKey>("water");
   const [experiment, setExperiment] = useState<ExperimentKey>("makeBond");
   const [playing, setPlaying] = useState(true);
   const [temperature, setTemperature] = useState(0);
@@ -566,6 +622,12 @@ export default function Home() {
     updateSummary();
   };
 
+  const selectSystem = (next: SystemKey) => {
+    const definition = SYSTEMS.find((candidate) => candidate.id === next)!;
+    setSystem(next);
+    selectExperiment(definition.experiences[0].id);
+  };
+
   const resetExperiment = () => {
     issueWorldCommand((world) => world.reset());
     const definition = EXPERIMENTS.find((candidate) => candidate.id === experiment)!;
@@ -576,10 +638,13 @@ export default function Home() {
   };
 
   const activeExperiment = EXPERIMENTS.find((candidate) => candidate.id === experiment)!;
+  const activeSystem = SYSTEMS.find((candidate) => candidate.id === system)!;
+  const activeIngredientKeys = new Set(activeSystem.ingredients);
+  const activeIngredients = INGREDIENTS.filter((ingredient) => activeIngredientKeys.has(ingredient.id));
   const controlsDisabled = engineStatus === "error";
 
   return (
-    <main className="lab-shell">
+    <main className={`lab-shell system-${system}`}>
       <canvas
         ref={canvasRef}
         className={`molecular-canvas ${sparkArmed ? "is-spark-armed" : ""}`}
@@ -627,8 +692,8 @@ export default function Home() {
           </span>
           <span>MolecularSetup</span>
         </div>
-        <nav className="experiment-switcher" aria-label="Experiments">
-          {EXPERIMENTS.map((item) => (
+        <nav className="experiment-switcher" aria-label="Experiences">
+          {activeSystem.experiences.map((item) => (
             <button
               key={item.id}
               type="button"
@@ -648,10 +713,27 @@ export default function Home() {
         <small>{activeExperiment.cue}</small>
       </div>
 
-      <aside className="ingredient-tray" aria-label="Ingredients">
-        <span className="tray-label">Add</span>
-        <div className="ingredient-list">
-          {INGREDIENTS.map((ingredient) => (
+      <aside className="system-panel" aria-label="System and ingredients">
+        <nav className="system-switcher" aria-label="Systems">
+          <span className="panel-label">System</span>
+          {SYSTEMS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={item.id === system ? "is-active" : ""}
+              aria-pressed={item.id === system}
+              disabled={controlsDisabled}
+              onClick={() => selectSystem(item.id)}
+            >
+              <span aria-hidden="true">{item.shortLabel}</span>
+              <strong>{item.label}</strong>
+            </button>
+          ))}
+        </nav>
+        <div className="ingredient-tray" aria-label={`${activeSystem.label} ingredients`}>
+          <span className="tray-label">Add</span>
+          <div className="ingredient-list" key={system}>
+          {activeIngredients.map((ingredient) => (
             <button
               key={ingredient.id}
               type="button"
@@ -669,6 +751,7 @@ export default function Home() {
               <IngredientThumbnail ingredient={ingredient} />
             </button>
           ))}
+          </div>
         </div>
       </aside>
 
@@ -696,7 +779,7 @@ export default function Home() {
         <button
           type="button"
           className="round-control"
-          aria-label="Reset this experiment"
+          aria-label="Reset this experience"
           disabled={controlsDisabled}
           onClick={resetExperiment}
         >

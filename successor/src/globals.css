@@ -50,6 +50,8 @@ input:disabled {
 }
 
 .lab-shell {
+  --system-accent: #71dfdf;
+  --system-accent-rgb: 113, 223, 223;
   position: relative;
   width: 100%;
   height: 100%;
@@ -57,6 +59,16 @@ input:disabled {
   isolation: isolate;
   color: var(--ink);
   background: #06121d;
+}
+
+.lab-shell.system-polymer {
+  --system-accent: #aa91ff;
+  --system-accent-rgb: 170, 145, 255;
+}
+
+.lab-shell.system-everything {
+  --system-accent: #ffd078;
+  --system-accent-rgb: 255, 208, 120;
 }
 
 .molecular-canvas {
@@ -193,8 +205,8 @@ input:disabled {
 
 .experiment-switcher button.is-active {
   color: #f2fbfa;
-  background: rgba(102, 200, 203, 0.17);
-  box-shadow: inset 0 0 0 1px rgba(123, 228, 223, 0.13), 0 5px 14px rgba(0, 0, 0, 0.16);
+  background: rgba(var(--system-accent-rgb), 0.17);
+  box-shadow: inset 0 0 0 1px rgba(var(--system-accent-rgb), 0.16), 0 5px 14px rgba(0, 0, 0, 0.16);
 }
 
 .experiment-cue {
@@ -223,25 +235,39 @@ input:disabled {
   font-size: 11px;
 }
 
-.ingredient-tray {
+.system-panel {
   position: absolute;
   z-index: 6;
-  top: 50%;
+  top: 76px;
+  bottom: 18px;
   left: 18px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  padding: 9px 8px 10px;
+  width: 142px;
+  gap: 12px;
+  pointer-events: none;
+}
+
+.system-switcher,
+.ingredient-tray {
   border: 1px solid var(--line);
-  border-radius: 18px;
   background: var(--glass);
   box-shadow: 0 18px 44px rgba(0, 0, 0, 0.25), inset 0 1px rgba(255, 255, 255, 0.04);
   backdrop-filter: blur(18px) saturate(130%);
-  transform: translateY(-50%);
+  pointer-events: auto;
 }
 
+.system-switcher {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px;
+  border-radius: 18px;
+}
+
+.panel-label,
 .tray-label {
+  padding: 1px 5px 4px;
   color: rgba(154, 184, 192, 0.7);
   font-family: "Avenir Next", "Segoe UI", system-ui, sans-serif;
   font-size: 9px;
@@ -250,16 +276,74 @@ input:disabled {
   text-transform: uppercase;
 }
 
-.ingredient-list {
+.system-switcher button {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  align-items: center;
+  min-height: 39px;
+  padding: 0 8px 0 5px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  color: rgba(169, 193, 201, 0.72);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.system-switcher button > span {
+  color: rgba(var(--system-accent-rgb), 0.74);
+  font-size: 11px;
+  font-weight: 750;
+  text-align: center;
+}
+
+.system-switcher button strong {
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.system-switcher button:hover {
+  color: #eff9fa;
+  background: rgba(var(--system-accent-rgb), 0.07);
+}
+
+.system-switcher button.is-active {
+  border-color: rgba(var(--system-accent-rgb), 0.18);
+  color: #f5fbfb;
+  background: rgba(var(--system-accent-rgb), 0.13);
+}
+
+.ingredient-tray {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 5px;
+  margin-top: auto;
+  padding: 9px 8px 10px;
+  border-radius: 18px;
+}
+
+.tray-label {
+  align-self: flex-start;
+}
+
+.ingredient-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 5px;
+  animation: ingredient-enter 220ms ease-out both;
+}
+
+@keyframes ingredient-enter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .ingredient-button {
   position: relative;
-  width: 66px;
-  height: 58px;
+  width: 60px;
+  height: 55px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: 13px;
@@ -273,7 +357,7 @@ input:disabled {
 .ingredient-button:hover {
   border-color: rgba(122, 224, 220, 0.18);
   background: rgba(112, 205, 207, 0.09);
-  transform: translateX(2px);
+  transform: translateY(-2px);
 }
 
 .ingredient-button:active {
@@ -652,7 +736,12 @@ input:disabled {
   }
 
   .experiment-switcher {
-    width: 100%;
+    position: fixed;
+    z-index: 7;
+    top: 84px;
+    right: 10px;
+    left: 10px;
+    width: auto;
     min-width: 0;
     overflow-x: auto;
     scrollbar-width: none;
@@ -670,7 +759,7 @@ input:disabled {
   }
 
   .experiment-cue {
-    top: 98px;
+    top: 132px;
     width: calc(100% - 24px);
     justify-content: center;
   }
@@ -682,7 +771,44 @@ input:disabled {
     white-space: nowrap;
   }
 
+  .system-panel {
+    position: static;
+    width: auto;
+  }
+
+  .system-switcher {
+    position: absolute;
+    z-index: 7;
+    top: 42px;
+    right: 10px;
+    left: 10px;
+    flex-direction: row;
+    gap: 3px;
+    padding: 3px;
+    border-radius: 13px;
+  }
+
+  .panel-label {
+    display: none;
+  }
+
+  .system-switcher button {
+    flex: 1 1 0;
+    grid-template-columns: 30px 1fr;
+    min-width: 0;
+    min-height: 32px;
+    padding: 0 7px 0 3px;
+  }
+
+  .system-switcher button strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .ingredient-tray {
+    position: absolute;
+    z-index: 7;
     top: auto;
     right: 0;
     bottom: 0;
@@ -702,8 +828,8 @@ input:disabled {
   }
 
   .ingredient-list {
+    display: flex;
     height: 68px;
-    flex-direction: row;
     justify-content: center;
     gap: 4px;
     overflow-x: auto;
@@ -766,6 +892,16 @@ input:disabled {
     justify-content: flex-start;
   }
 
+  .system-switcher button {
+    display: flex;
+    justify-content: center;
+    padding: 0 6px;
+  }
+
+  .system-switcher button > span {
+    display: none;
+  }
+
   .temperature-control {
     padding-right: 12px;
     padding-left: 12px;
@@ -788,8 +924,8 @@ input:disabled {
 }
 
 @media (max-height: 620px) and (min-width: 761px) {
-  .ingredient-tray {
-    transform: translateY(-46%) scale(0.88);
+  .system-panel {
+    transform: scale(0.88);
     transform-origin: left center;
   }
 

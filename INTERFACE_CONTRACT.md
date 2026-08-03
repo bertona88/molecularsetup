@@ -3,18 +3,24 @@
 ## Human interface
 
 The main route is a full-viewport Canvas2D molecular field that becomes
-populated as soon as the verified engine loads. Persistent visible controls are
-limited to:
+populated as soon as the verified engine loads. A side rail selects Water,
+Polymers, or Everything. Persistent visible controls are limited to:
 
-- four experiment modes: Make a bond, Break a bond, Ignite, Free play;
-- five ingredient buttons: H, O, H2, O2, H2O;
+- the three-system rail;
+- system-scoped experience buttons;
+- the active system's ingredient buttons;
 - Spark;
 - play/pause and reset;
 - one broad horizontal Cold / Warm / Hot control.
 
 There is one default container. Its right wall is visibly a piston. The primary
 experience has no arbitrary boundary drawing, numerical readout, chart,
-inspector, property table, reaction recipe, or product selector.
+inspector, property table, reaction recipe, product selector, or lesson panel.
+
+Water exposes Make a bond, Break a bond, Ignite, and Free play with H, O, H2,
+O2, and H2O. Polymers exposes Grow a chain, Stretch a chain, and Free play with
+generic M2 monomers and X junctions. Everything exposes one Free play
+experience and all seven ingredients.
 
 ## Gestures
 
@@ -58,12 +64,12 @@ inside one second; the engine acceptance ratio is at least 5x.
 The browser adapter provides semantic operations equivalent to:
 
 ```ts
-interface SimulationBackendV2 {
+interface SimulationBackendV3 {
   reset(seed: number): void;
-  loadExperiment(id: 0 | 1 | 2 | 3): void;
+  loadExperiment(id: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): void;
   setPlaying(value: boolean): void;
   setTemperature(normalized: number): void;
-  spawnIngredient(id: 0 | 1 | 2 | 3 | 4, count: number, x: number, y: number): number;
+  spawnIngredient(id: 0 | 1 | 2 | 3 | 4 | 5 | 6, count: number, x: number, y: number): number;
   applySpark(x: number, y: number, energy: number, radius: number): boolean;
   grabAtom(atomId: number, x: number, y: number): boolean;
   dragAtom(atomId: number, x: number, y: number): boolean;
@@ -74,7 +80,7 @@ interface SimulationBackendV2 {
 }
 ```
 
-The Wasm module is the only backend. It must report ABI/model `2/2`, export
+The Wasm module is the only backend. It must report ABI/model `3/3`, export
 memory, have zero imports, and expose packed atom, explicit-bond, wall, event,
 and statistics views. Per-frame atom/bond objects do not cross the boundary.
 
@@ -113,9 +119,9 @@ every deterministic fixed step independently of presentation cadence.
 ## Accessibility
 
 - Every control has a descriptive accessible name and visible focus.
-- Experiment buttons expose pressed state.
+- System and experience buttons expose pressed state.
 - No accessibility node is created per atom.
-- One polite summary reports H/O counts, bond-state counts, excited atoms,
+- One polite summary reports H/O and generic M/X counts, bond-state counts, excited atoms,
   active grab state, and play state.
 - Canvas instructions describe grab, pan, and piston interactions.
 - Engine loading has status text. Blocked, corrupt, or wrong-version Wasm
@@ -123,11 +129,11 @@ every deterministic fixed step independently of presentation cadence.
 
 ## Responsive layout
 
-Desktop keeps ingredients on a narrow side rail, experiments at the top, and
-heat/actions at the bottom. At mobile width, ingredients become a bottom
-horizontal tray, heat moves above it, and actions remain reachable without
-covering the experiment switcher. Canvas gestures retain priority outside
-these controls.
+Desktop keeps systems and ingredients in a narrow left rail, experiences at
+the top, and heat/actions at the bottom. At mobile width, systems and
+experiences become horizontal top switchers, ingredients become a bottom
+horizontal tray, heat moves above it, and actions remain reachable. Canvas
+gestures retain priority outside these controls.
 
 ## Shareable recipe boundary
 

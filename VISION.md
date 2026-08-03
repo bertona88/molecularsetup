@@ -1,8 +1,8 @@
 # MolecularSetup vision
 
-MolecularSetup is a touch-first molecular world for learning chemistry through
-cause and effect. The default screen is a populated experiment, not a blank
-editor or a scientific dashboard.
+MolecularSetup is a touch-first molecular world for learning chemistry and
+materials through cause and effect. The default screen is a populated
+experience, not a blank editor or a scientific dashboard.
 
 The visual thesis is simple: when atoms collide, bonds begin to form; when a
 bond stretches, its state becomes visibly uncertain; when activation arrives,
@@ -38,12 +38,28 @@ observe closely and alive enough to invite another experiment.
 6. **Keep claims narrower than the experience.** The world may be coherent and
    educational without pretending to predict laboratory chemistry.
 
-## Version 2 experience
+## Version 3 experience
+
+The world is organized in three systems. A system owns its ingredient family,
+interaction rules, and available starting experiences. An experience is only a
+seeded starting condition inside that system; it is not a scripted product.
+
+- **Water** retains Make a bond, Break a bond, Ignite, and Free play with H, O,
+  H2, O2, and H2O.
+- **Polymers** introduces generic two-ended monomers and three-way junctions
+  with Grow a chain, Stretch a chain, and Free play.
+- **Everything** exposes both ingredient families in one free sandbox. The
+  families share the container, heat, spark, grabbing, and wall mechanics but
+  do not gain invented cross-family bonds.
+
+`M` and `X` are visibly generic model sites, not chemical elements or claims
+about a named polymer. The current interface does not include a lesson or
+explanation panel.
 
 The persistent controls are deliberately small:
 
-- experiments: **Make a bond**, **Break a bond**, **Ignite**, **Free play**;
-- ingredients: **H**, **O**, **H2**, **O2**, **H2O**;
+- systems: **Water**, **Polymers**, **Everything**;
+- system-scoped experiences and ingredients;
 - a broad horizontal **Cold / Warm / Hot** control;
 - a local **Spark** tool;
 - play/pause and reset.
@@ -69,11 +85,19 @@ atom.
   least 75% of oxygen atoms two stable O-H neighbors within eight seconds.
 - **Free play:** all later behavior follows the same collision, activation,
   valence, bond, angle, heat, grab, and wall rules.
+- **Grow a chain:** eight separate generic two-ended monomers close into one
+  connected 16-site chain through the ordinary activated-collision rule.
+- **Stretch a chain:** a connected 16-site chain visibly enters stressed or
+  breaking bond states when pulled.
+- **Polymer Free play:** monomers and junctions use the same collision,
+  valence, activation, formation, strain, and breaking rules.
+- **Everything:** the water and polymer families coexist under their declared
+  local pair rules; unsupported cross-family pairs do not bond.
 
 ## Architecture
 
 - Rust owns deterministic model state and fixed-step execution.
-- A zero-import Wasm module exposes ABI/model 2/2 commands and packed views.
+- A zero-import Wasm module exposes ABI/model 3/3 commands and packed views.
 - TypeScript owns gestures, camera, accessibility, load failure, and backend
   validation.
 - Canvas2D owns presentation. WebGPU and sound are intentionally out of scope.

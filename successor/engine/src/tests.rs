@@ -1,6 +1,8 @@
 use crate::model::{
-    angle_preference_energy, ELEMENTS, ELEMENT_H, ELEMENT_O, EXPERIMENT_BREAK_BOND,
-    EXPERIMENT_FREE_PLAY, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND, H_O_H_ANGLE_RADIANS,
+    angle_preference_energy, ELEMENTS, ELEMENT_H, ELEMENT_M, ELEMENT_O, ELEMENT_X,
+    EXPERIMENT_BREAK_BOND, EXPERIMENT_EVERYTHING, EXPERIMENT_FREE_PLAY,
+    EXPERIMENT_GROW_CHAIN, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND,
+    EXPERIMENT_POLYMER_FREE_PLAY, EXPERIMENT_STRETCH_CHAIN, H_O_H_ANGLE_RADIANS,
 };
 use crate::world::World;
 use crate::{ABI_VERSION, FIXED_DT, MAX_ATOMS, MODEL_VERSION};
@@ -89,10 +91,10 @@ fn deterministic_snapshot(world: &World) -> Vec<u64> {
 }
 
 #[test]
-fn abi_v2_opens_in_a_populated_default_container() {
+fn abi_v3_opens_in_a_populated_default_container() {
     let world = World::new(0x1234);
-    assert_eq!(ABI_VERSION, 2);
-    assert_eq!(MODEL_VERSION, 2);
+    assert_eq!(ABI_VERSION, 3);
+    assert_eq!(MODEL_VERSION, 3);
     assert_eq!(world.experiment, EXPERIMENT_MAKE_BOND);
     assert_eq!(world.atoms.len(), 2);
     assert_eq!(world.walls.len(), 4);
@@ -135,11 +137,13 @@ fn exact_overlap_separates_along_a_deterministic_id_direction() {
 }
 
 #[test]
-fn explicit_bonds_never_exceed_h_or_o_valence() {
+fn explicit_bonds_never_exceed_any_site_valence() {
     let mut world = World::new(0x51a1);
     world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
     assert_eq!(world.spawn_ingredient(0, 24, 0.0, 0.0), 24);
     assert_eq!(world.spawn_ingredient(1, 12, 0.0, 0.0), 12);
+    assert_eq!(world.spawn_ingredient(5, 12, 0.0, 0.0), 12);
+    assert_eq!(world.spawn_ingredient(6, 6, 0.0, 0.0), 6);
     assert_eq!(world.apply_spark(0.0, 0.0, 400.0, 280.0), 1);
     world.step_fixed(720);
     let mut usage = vec![0_u8; world.atoms.len()];
@@ -149,6 +153,70 @@ fn explicit_bonds_never_exceed_h_or_o_valence() {
     }
     for (index, used) in usage.into_iter().enumerate() {
         assert!(used <= ELEMENTS[world.atoms[index].element as usize].valence);
+    }
+    assert_finite(&world);
+}
+
+#[test]
+fn grow_chain_preset_forms_one_sixteen_site_polymer() {
+    let mut world = World::new(0x504f_4c59);
+    world.load_experiment(EXPERIMENT_GROW_CHAIN as u32);
+    assert_eq!(world.element_count(ELEMENT_M), 16);
+    assert_eq!(world.bonds.len(), 8, "preset should begin as eight separate monomers");
+    world.step_fixed(120);
+    assert_eq!(world.bonds.len(), 15, "the eight monomers did not close into one linear chain");
+    let mut seen = vec![false; world.atoms.len()];
+    let mut stack = vec![0_usize];
+    seen[0] = true;
+    while let Some(atom) = stack.pop() {
+        for bond in &world.bonds {
+            let neighbor = if bond.a == atom { Some(bond.b) }
+                else if bond.b == atom { Some(bond.a) } else { None };
+            if let Some(neighbor) = neighbor {
+                if !seen[neighbor] { seen[neighbor] = true; stack.push(neighbor); }
+            }
+        }
+    }
+    assert!(seen.into_iter().all(|value| value), "formed bonds did not make one connected chain");
+    assert!(world.ledger.formation_release > 0.0);
+    assert_finite(&world);
+}
+
+#[test]
+fn polymer_stretch_and_sandbox_presets_are_distinct_and_finite() {
+    let mut world = World::new(0x5354_5245);
+    world.load_experiment(EXPERIMENT_STRETCH_CHAIN as u32);
+    assert_eq!(world.element_count(ELEMENT_M), 16);
+    assert_eq!(world.bonds.len(), 15);
+    let atom_id = world.atoms[0].id;
+    assert_eq!(world.grab_atom(atom_id, world.atoms[0].x, world.atoms[0].y), 1);
+    assert_eq!(world.drag_atom(atom_id, -280.0, 0.0), 1);
+    world.step_fixed(180);
+    assert!(world.bonds.iter().any(|bond| bond.state != crate::model::BOND_STABLE)
+        || world.ledger.breaking_absorption > 0.0,
+        "pulling the chain produced no visible bond-state response");
+    assert_finite(&world);
+
+    world.load_experiment(EXPERIMENT_POLYMER_FREE_PLAY as u32);
+    assert_eq!(world.element_count(ELEMENT_M), 10);
+    assert_eq!(world.spawn_ingredient(5, 1, 0.0, 0.0), 1);
+    assert_eq!(world.spawn_ingredient(6, 1, 0.0, 0.0), 1);
+    assert_finite(&world);
+
+    world.load_experiment(EXPERIMENT_EVERYTHING as u32);
+    assert!(world.element_count(ELEMENT_H) > 0);
+    assert!(world.element_count(ELEMENT_O) > 0);
+    assert!(world.element_count(ELEMENT_M) > 0);
+    assert!(world.element_count(ELEMENT_X) > 0);
+    assert_eq!(world.apply_spark(0.0, 0.0, 400.0, 420.0), 1);
+    world.step_fixed(480);
+    for bond in &world.bonds {
+        let a = world.atoms[bond.a].element;
+        let b = world.atoms[bond.b].element;
+        let water_family = |element| element == ELEMENT_H || element == ELEMENT_O;
+        let polymer_family = |element| element == ELEMENT_M || element == ELEMENT_X;
+        assert!(!(water_family(a) && polymer_family(b) || polymer_family(a) && water_family(b)));
+        assert!(!(a == ELEMENT_X && b == ELEMENT_X));
     }
     assert_finite(&world);
 }

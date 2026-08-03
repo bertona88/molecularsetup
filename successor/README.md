@@ -1,19 +1,20 @@
 # MolecularSetup chemistry-intuition successor
 
 This directory contains the static React/Canvas2D browser shell and the
-deterministic Rust/WebAssembly bonding engine for ABI/model v2.
+deterministic Rust/WebAssembly bonding engine for ABI/model v3.
 
 ## Experience
 
-- populated Make a bond, Break a bond, Ignite, and Free play experiments;
-- H, O, H2, O2, and H2O ingredients, one per tap/drag and streamed on hold;
+- Water, Polymers, and Everything systems in a left rail;
+- system-scoped experiences and ingredient shelves, including generic M2
+  monomers and X junctions;
 - explicit forming, stable, stressed, and breaking bonds drawn above atoms;
 - decaying local spark excitation and persistent causal event traces;
 - spring atom grabbing, empty-canvas pan, wheel/pinch zoom;
 - broad horizontal Cold/Warm/Hot control;
 - one four-wall container with a finite-speed right piston;
-- no numerical dashboard, inspector, product selector, or arbitrary boundary
-  creation.
+- no numerical dashboard, inspector, product selector, lesson panel, or
+  arbitrary boundary creation.
 
 Rust owns dynamics, bonds, randomness, walls, events, and ledgers. TypeScript
 validates packed Wasm views, handles gestures/accessibility/camera, and renders
@@ -51,13 +52,14 @@ npm run test:browser
 
 `engine:build` compiles locked/offline, runs the real-Wasm ABI test, publishes
 the artifact and manifest, verifies source/artifact hashes, and requires zero
-imports plus ABI/model `2/2`.
+imports plus ABI/model `3/3`.
 
 ## Claim boundary
 
 The model is dimensionless, planar, reduced, pedagogical, and non-predictive.
-Its oxygen mass is deliberately compressed and its bond parameters are not a
-calibrated force field. Read `../MOLECULAR_MODEL_CONTRACT.md`,
+Its oxygen mass is deliberately compressed, its generic M/X sites are not
+chemical elements, and its bond parameters are not a calibrated force field.
+Read `../MOLECULAR_MODEL_CONTRACT.md`,
 `engine/ENGINE_ABI.md`, `../CLAIMS_AND_VALIDATION.md`, and
 `../ACCEPTANCE_TESTS.md` before changing or presenting behavior.
 

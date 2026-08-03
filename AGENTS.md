@@ -5,7 +5,7 @@
 MolecularSetup is rebuilding its browser successor as a bonding-first chemistry
 intuition world. The active implementation is `successor/`: a static
 React/Canvas2D shell around a deterministic, zero-import Rust/WebAssembly
-engine. ABI/model v2 is intentionally incompatible with v1.
+engine. ABI/model v3 is intentionally incompatible with v2.
 
 Production release `20260726T002235Z-478235af2650` was verified at
 https://molecularsetup.com/ on 2026-07-26. Current availability is external
@@ -15,19 +15,22 @@ or delete `prototype/` without explicit authorization.
 
 ## Active product boundary
 
-The accepted v2 slice is a calm, full-canvas, two-dimensional teaching world
+The active v3 slice is a calm, full-canvas, two-dimensional teaching world
 where collision, activation, bond formation, strain, breaking, energy release,
 and compression are visually causal events.
 
-- Four experiments: Make a bond, Break a bond, Ignite, and Free play.
-- Five ingredients only: H, O, H2, O2, and H2O.
+- Three systems: Water, Polymers, and Everything.
+- Water retains Make a bond, Break a bond, Ignite, and Free play with H, O, H2,
+  O2, and H2O.
+- Polymers uses generic M2 monomers and X junctions in Grow a chain, Stretch a
+  chain, and Free play. Everything exposes both ingredient families.
 - One persistent container with one finite-speed piston wall.
 - Explicit first-class bonds with forming, stable, stressed, and breaking
   states.
 - Local spark excitation, direct spring grabbing, horizontal semantic heat,
   pan, wheel zoom, and pinch zoom.
 - No persistent numerical dashboard, inspector, reaction table, or scripted
-  product selection.
+  product selection. No lesson/explanation panel is in the current slice.
 
 Perceptual causality is part of correctness. An event that exists only in an
 internal counter but is not legible through motion, bond state, excitation,
@@ -41,6 +44,9 @@ reduced, dimensionless, planar, pedagogical, and non-predictive.
 - H and O have explicit integer valence capacities of 1 and 2.
 - H-H order 1, O-O order 2, and O-H order 1 use versioned teaching
   parameters.
+- Generic M and X model sites have valence capacities 2 and 3; M-M and M-X
+  order-1 bonds use separate versioned teaching parameters. M/X are not
+  chemical elements or a named polymer model.
 - Oxygen uses four hydrogen masses rather than the physical ratio of about
   sixteen so oxygen movement remains visible.
 - A three-body angular term prefers H-O-H geometry.
@@ -60,7 +66,7 @@ real chemistry result.
   spatial neighbor search, hard collision response, bonds, angular forces,
   activation, excitation decay, grabbing, piston motion, wall impulse/load,
   events, statistics, and energy ledgers.
-- Wasm exports one zero-import module with packed arrays and ABI/model 2/2.
+- Wasm exports one zero-import module with packed arrays and ABI/model 3/3.
   Every mutation invalidates prior pointers and typed-array views.
 - TypeScript owns input gestures, camera transforms, accessibility, experiment
   selection, artifact validation, and Canvas2D presentation. It must not contain
@@ -98,7 +104,7 @@ must not be reported as passing before evidence exists.
 - Rebuild Rust/Wasm and run heavyweight browser tests on `devbox-home` or CI.
   Do not install a large toolchain on a Mac merely to satisfy this repository.
 - The checked-in artifact and manifest must match engine sources by SHA-256,
-  report 2/2, have zero imports, and reproduce byte-for-byte under the pinned
+  report 3/3, have zero imports, and reproduce byte-for-byte under the pinned
   toolchain.
 
 ## Setup Universe boundary

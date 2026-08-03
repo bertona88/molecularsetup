@@ -1,5 +1,52 @@
 # Validation report
 
+## Current multi-system polymerization candidate
+
+Date: 2026-08-03
+
+Candidate: uncommitted `main` working tree based on
+`24acc95bac4f4ad708f445c429ecc3f1692f7e40`
+
+The candidate introduces ABI/model `3/3` and the Water, Polymers, and
+Everything system boundary. Water retains the v2 experiences and ids. Polymers
+adds generic two-ended M2 monomers, generic three-way X junctions, Grow a
+chain, Stretch a chain, and Free play. Everything exposes both ingredient
+families without inventing H/O-to-M/X or X-X bonds. The interface adds a
+system rail and system-scoped experiences/ingredients; it does not add a lesson
+or explanation panel.
+
+Evidence recorded in this run:
+
+| Check | Result |
+|---|---|
+| Native Rust model and LJ fixture on `devbox-home` | 24 passed, 0 failed; doc tests 0 failed |
+| Fresh release Wasm ABI smoke | 4 passed, 0 failed; pre-publish identity check intentionally skipped |
+| Full verified application build and Node tests | 10 passed, 0 failed |
+| Playwright Chromium on `devbox-home` | 9 passed, 0 failed |
+| TypeScript typecheck and ESLint | passed |
+| Desktop and 390x844 visual browser QA | system/experience rails, polymer formation, system ingredients, and mobile controls remained legible; no browser warnings/errors |
+
+The Grow a chain native gate begins with eight separate M2 monomers and forms
+one connected 16-site/15-bond chain within 120 fixed steps. The browser gate
+observes the same 15-bond outcome. The Stretch a chain native and browser gates
+verify that a direct spring pull makes bond stress, breaking, or bond loss
+visible. Polymer Free play accepts M2 and X, all site valences remain bounded,
+and Everything contains both H/O and M/X families.
+
+The rebuilt zero-import artifact is
+`successor/public/engine/molecularsetup_engine.wasm`: 128,387 bytes, Wasm
+SHA-256 `75c8140506f8c5ffd722b2a131bf60361e0db167ba0999f6cdec29a526322ee1`,
+engine-source SHA-256
+`309060faa1f4bcd5219f3289ce970cbd5f88eb49a897f6d4d9d89a8b1d6b668f`, and
+manifest ABI/model `3/3`.
+
+`prototype/` and the pre-existing root `.sites-runtime/` were not modified. No
+commit, push, deployment, DNS change, hosted checkpoint, or production
+replacement was performed. Public behavior remains whatever is currently
+deployed and was not used as acceptance evidence for this local candidate.
+
+## Prior performance candidate record
+
 Date: 2026-08-03
 
 Candidate: uncommitted `main` working tree based on

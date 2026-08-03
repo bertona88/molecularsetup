@@ -1,4 +1,4 @@
-/** Presentation metadata for the intentionally breaking ABI v2 catalog. */
+/** Presentation metadata for the multi-system ABI v3 catalog. */
 
 export const ENGINE_INGREDIENT_ID = {
   hydrogenAtom: 0,
@@ -6,11 +6,15 @@ export const ENGINE_INGREDIENT_ID = {
   hydrogen: 2,
   oxygen: 3,
   water: 4,
+  monomer: 5,
+  junction: 6,
 } as const;
 
 export const ENGINE_ELEMENT_ID = {
   H: 0,
   O: 1,
+  M: 2,
+  X: 3,
 } as const;
 
 export type IngredientKey = keyof typeof ENGINE_INGREDIENT_ID;
@@ -60,11 +64,29 @@ export const ELEMENTS = {
     glow: "rgba(255, 102, 112, .48)",
     radius: 10,
   },
+  M: {
+    id: ENGINE_ELEMENT_ID.M,
+    symbol: "M",
+    color: "#a98cff",
+    rim: "#d5c9ff",
+    glow: "rgba(164, 131, 255, .52)",
+    radius: 9,
+  },
+  X: {
+    id: ENGINE_ELEMENT_ID.X,
+    symbol: "X",
+    color: "#ffbd66",
+    rim: "#ffe0a8",
+    glow: "rgba(255, 184, 92, .52)",
+    radius: 11,
+  },
 } as const satisfies Record<ElementKey, ElementPresentation>;
 
 export const ELEMENTS_BY_ENGINE_ID: readonly ElementPresentation[] = [
   ELEMENTS.H,
   ELEMENTS.O,
+  ELEMENTS.M,
+  ELEMENTS.X,
 ];
 
 export const INGREDIENTS: readonly Ingredient[] = [
@@ -121,6 +143,25 @@ export const INGREDIENTS: readonly Ingredient[] = [
       [0, 2, 1],
     ],
   },
+  {
+    id: "monomer",
+    engineId: ENGINE_INGREDIENT_ID.monomer,
+    formula: "M₂",
+    name: "two-ended monomer",
+    atoms: [
+      { element: "M", x: -9, y: 0 },
+      { element: "M", x: 9, y: 0 },
+    ],
+    bonds: [[0, 1, 1]],
+  },
+  {
+    id: "junction",
+    engineId: ENGINE_INGREDIENT_ID.junction,
+    formula: "X",
+    name: "three-way junction",
+    atoms: [{ element: "X", x: 0, y: 0 }],
+    bonds: [],
+  },
 ];
 
 export const INGREDIENTS_BY_KEY = Object.fromEntries(
@@ -154,6 +195,6 @@ export function ingredientEngineId(
   return ingredient.engineId;
 }
 
-if (ELEMENTS_BY_ENGINE_ID.length !== 2) {
-  throw new Error("The presentation catalog does not match engine ABI v2.");
+if (ELEMENTS_BY_ENGINE_ID.length !== 4) {
+  throw new Error("The presentation catalog does not match engine ABI v3.");
 }

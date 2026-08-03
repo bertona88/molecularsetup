@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
-  "abiVersion": 2,
-  "modelVersion": 2,
-  "sourceSha256": "96fce46e7d05181eed4762e64b9a0b16c54755fe920b17839d07a5d58d352b23",
-  "wasmSha256": "5f5e99cddea26d094a90302788711a511247c2fd9352711b24e2e04177687914",
-  "wasmBytes": 126694
+  "abiVersion": 3,
+  "modelVersion": 3,
+  "sourceSha256": "309060faa1f4bcd5219f3289ce970cbd5f88eb49a897f6d4d9d89a8b1d6b668f",
+  "wasmSha256": "75c8140506f8c5ffd722b2a131bf60361e0db167ba0999f6cdec29a526322ee1",
+  "wasmBytes": 128387
 }

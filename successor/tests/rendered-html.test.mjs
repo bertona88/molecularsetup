@@ -16,7 +16,7 @@ test("builds a relative-path static entry", async () => {
   assert.ok(assets.some((asset) => asset.endsWith(".js")));
 });
 
-test("source preserves the chemistry-intuition v2 interaction contract", async () => {
+test("source presents water, polymer, and everything systems without a lesson panel", async () => {
   const source = await readFile(appUrl, "utf8");
   for (const label of [
     "Make a bond",
@@ -28,14 +28,20 @@ test("source preserves the chemistry-intuition v2 interaction contract", async (
     "Warm",
     "Hot",
     "Drag piston",
+    "Water",
+    "Polymers",
+    "Everything",
+    "Grow a chain",
+    "Stretch a chain",
   ]) {
     assert.match(source, new RegExp(label));
   }
   assert.match(source, /className={`molecular-canvas/);
-  assert.match(source, /aria-label="Ingredients"/);
+  assert.match(source, /aria-label="Systems"/);
+  assert.match(source, /activeSystem\.label} ingredients/);
   assert.match(source, /aria-label="Simulation controls"/);
   assert.match(source, /Hold to add a stream/);
-  assert.match(source, /Reset this experiment/);
+  assert.match(source, /Reset this experience/);
   assert.match(source, /world is stopped/i);
   assert.doesNotMatch(source, /dashboard|inspector|reaction recipe|quantity slider/i);
   assert.doesNotMatch(source, /aria-valuenow|kelvin|pascal/i);

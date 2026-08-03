@@ -2,7 +2,7 @@
 
 `molecular-world.ts` is the only simulation backend used by the successor. It
 loads `./engine/molecularsetup_engine.wasm`, requires a zero-import module and
-ABI/model `2/2`, validates every packed pointer/length/stride, and has no
+ABI/model `3/3`, validates every packed pointer/length/stride, and has no
 JavaScript dynamics or fallback.
 
 ## Ownership
@@ -67,5 +67,6 @@ step still executes.
 ## Presentation-only catalog
 
 `molecular-catalog.ts` freezes ingredient ids `H=0`, `O=1`, `H2=2`, `O2=3`,
-`H2O=4` and element ids `H=0`, `O=1`. Thumbnail geometry/color is presentation
-metadata. Engine templates and all later connectivity remain Rust-owned.
+`H2O=4`, `M2=5`, `X=6` and site ids `H=0`, `O=1`, `M=2`, `X=3`. Thumbnail
+geometry/color is presentation metadata. Engine templates and all later
+connectivity remain Rust-owned.

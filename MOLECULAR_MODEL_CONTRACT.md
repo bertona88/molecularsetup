@@ -3,7 +3,7 @@
 ## Status and validity domain
 
 The active backend is a dependency-free Rust core compiled to WebAssembly. ABI
-and model versions are both `2`. It is a deterministic, reduced-unit,
+and model versions are both `3`. It is a deterministic, reduced-unit,
 two-dimensional, pedagogical bonding model. It is non-predictive chemistry.
 
 The model contains no reaction lookup, product graph, desired-product term, or
@@ -14,7 +14,7 @@ formation, strain, and breaking rules.
 
 ## State
 
-Each atom stores a stable id, H/O element id, current and previous position,
+Each site stores a stable id, H/O element or generic M/X site id, current and previous position,
 velocity, force, age, excitation, and finite-state flags. A single optional
 grab record identifies an atom and a pointer target; the target acts through a
 spring rather than a position edit.
@@ -37,9 +37,9 @@ and energy ledgers are internal views, not persistent visual readouts. The live
 event queue is a 4,096-record oldest-first ring; overflow removes only the
 oldest trace record and does not change collision counters or model response.
 
-## Ingredients, valence, and pair parameters
+## Systems, ingredients, valence, and pair parameters
 
-ABI v2 ingredient ids are:
+ABI v3 ingredient ids are:
 
 | Id | Ingredient | Initial bonds |
 |---:|---|---|
@@ -48,16 +48,25 @@ ABI v2 ingredient ids are:
 | 2 | H2 | one stable H-H order-1 bond |
 | 3 | O2 | one stable O-O order-2 bond |
 | 4 | H2O | two stable O-H order-1 bonds |
+| 5 | generic monomer M2 | one stable M-M order-1 bond; one free valence at each end |
+| 6 | generic junction X | none; three available connections |
 
-Hydrogen has valence capacity 1. Oxygen has valence capacity 2. A bond reserves
+Hydrogen has valence capacity 1, oxygen 2, generic monomer site M 2, and generic
+junction X 3. `M` and `X` are model-site symbols, not chemical elements. A bond reserves
 its full integer order while forming, stable, stressed, or breaking, so no
 transient state may overfill valence.
 
-H-H, O-O, and O-H have versioned values for order, rest length, capture
+H-H, O-O, O-H, M-M, and M-X have versioned values for order, rest length, capture
 distance, spring stiffness, damping, activation barrier, formation time,
 dissociation energy, strain hysteresis, and excitation threshold. These are
 teaching parameters, not fitted bond energies or a published reactive force
 field.
+
+Water experiments are ids 0–3: Make a bond, Break a bond, Ignite, and Free
+play. Polymer experiments are ids 4–6: Grow a chain, Stretch a chain, and Free
+play. Id 7 is the Everything sandbox. The system boundary is a grouping of
+ingredients and starting conditions; the engine continues to apply pair-local
+rules. H/O sites do not bond to M/X sites, and X-X has no declared pair rule.
 
 ## Coordinates, time, and mass
 
@@ -72,6 +81,8 @@ field.
   boundaries.
 - Hydrogen mass: 1 reduced unit.
 - Oxygen mass: 4 reduced units.
+- Generic M site mass: 3 reduced units.
+- Generic X junction mass: 5 reduced units.
 
 The physical H:O mass ratio is about 1:16. The compressed 1:4 ratio is an
 explicit nonphysical scaling chosen so oxygen moves visibly at warm and hot
@@ -122,7 +133,7 @@ zero repulsive response.
 
 An eligible pair starts a finite-duration `forming` bond only when:
 
-- the pair is H-H, O-O, or O-H;
+- the pair is H-H, O-O, O-H, M-M, or M-X;
 - both atoms have sufficient remaining integer valence;
 - the atoms collide or enter the contact shell while moving together;
 - relative collision energy plus excitation clears the activation barrier.
@@ -198,4 +209,6 @@ resonance, spin, tunneling, quantum behavior, three-dimensional geometry,
 solvent, calibrated kinetics, entropy, real pressure, real temperature,
 catalysis, and a published reactive parameter set. It cannot validate a real
 pathway, product distribution, rate, equilibrium, phase, hazard, synthesis, or
-mechanism.
+mechanism. Its generic monomer and junction sites do not predict a real
+polymerization pathway, conversion, molecular-weight distribution, branching
+statistics, gel point, material property, processing condition, or safety.

@@ -5,8 +5,8 @@
 //! sixteen. The smaller ratio keeps oxygen motion legible while retaining the
 //! qualitative fact that hydrogen responds more readily.
 
-pub const MODEL_VERSION: u32 = 2;
-pub const ABI_VERSION: u32 = 2;
+pub const MODEL_VERSION: u32 = 3;
+pub const ABI_VERSION: u32 = 3;
 pub const FIXED_DT: f64 = 1.0 / 120.0;
 pub const MAX_ATOMS: usize = 18_000;
 pub const MAX_SPEED: f64 = 260.0;
@@ -15,6 +15,8 @@ pub const WORLD_LIMIT: f64 = 1.0e6;
 
 pub const ELEMENT_H: u8 = 0;
 pub const ELEMENT_O: u8 = 1;
+pub const ELEMENT_M: u8 = 2;
+pub const ELEMENT_X: u8 = 3;
 
 pub const BOND_FORMING: u8 = 0;
 pub const BOND_STABLE: u8 = 1;
@@ -25,6 +27,10 @@ pub const EXPERIMENT_MAKE_BOND: u8 = 0;
 pub const EXPERIMENT_BREAK_BOND: u8 = 1;
 pub const EXPERIMENT_IGNITE: u8 = 2;
 pub const EXPERIMENT_FREE_PLAY: u8 = 3;
+pub const EXPERIMENT_GROW_CHAIN: u8 = 4;
+pub const EXPERIMENT_STRETCH_CHAIN: u8 = 5;
+pub const EXPERIMENT_POLYMER_FREE_PLAY: u8 = 6;
+pub const EXPERIMENT_EVERYTHING: u8 = 7;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ElementParam {
@@ -33,9 +39,11 @@ pub struct ElementParam {
     pub valence: u8,
 }
 
-pub const ELEMENTS: [ElementParam; 2] = [
+pub const ELEMENTS: [ElementParam; 4] = [
     ElementParam { mass: 1.0, radius: 7.0, valence: 1 }, // H
     ElementParam { mass: 4.0, radius: 10.0, valence: 2 }, // O (compressed from the physical mass ratio)
+    ElementParam { mass: 3.0, radius: 9.0, valence: 2 }, // generic two-ended polymer site M
+    ElementParam { mass: 5.0, radius: 11.0, valence: 3 }, // generic three-way junction X
 ];
 
 #[derive(Clone, Copy, Debug)]
@@ -95,12 +103,42 @@ pub const O_H: PairParam = PairParam {
     excitation_break: 154.0,
 };
 
+pub const M_M: PairParam = PairParam {
+    order: 1,
+    rest_length: 18.0,
+    capture_distance: 27.0,
+    stiffness: 88.0,
+    damping: 6.2,
+    activation_barrier: 18.0,
+    formation_time: 0.34,
+    dissociation_energy: 126.0,
+    strain_on: 0.24,
+    strain_break: 0.52,
+    excitation_break: 210.0,
+};
+
+pub const M_X: PairParam = PairParam {
+    order: 1,
+    rest_length: 20.0,
+    capture_distance: 30.0,
+    stiffness: 104.0,
+    damping: 6.8,
+    activation_barrier: 22.0,
+    formation_time: 0.38,
+    dissociation_energy: 152.0,
+    strain_on: 0.26,
+    strain_break: 0.56,
+    excitation_break: 230.0,
+};
+
 #[inline]
 pub fn pair_param(a: u8, b: u8) -> Option<PairParam> {
     match (a, b) {
         (ELEMENT_H, ELEMENT_H) => Some(H_H),
         (ELEMENT_O, ELEMENT_O) => Some(O_O),
         (ELEMENT_H, ELEMENT_O) | (ELEMENT_O, ELEMENT_H) => Some(O_H),
+        (ELEMENT_M, ELEMENT_M) => Some(M_M),
+        (ELEMENT_M, ELEMENT_X) | (ELEMENT_X, ELEMENT_M) => Some(M_X),
         _ => None,
     }
 }
@@ -155,6 +193,13 @@ const H2O_ATOMS: [TemplateAtom; 3] = [
     TemplateAtom { element: ELEMENT_H, x: -13.45, y: 10.36 },
     TemplateAtom { element: ELEMENT_H, x: 13.45, y: 10.36 },
 ];
+const MONOMER_ATOMS: [TemplateAtom; 2] = [
+    TemplateAtom { element: ELEMENT_M, x: -9.0, y: 0.0 },
+    TemplateAtom { element: ELEMENT_M, x: 9.0, y: 0.0 },
+];
+const JUNCTION_ATOMS: [TemplateAtom; 1] = [
+    TemplateAtom { element: ELEMENT_X, x: 0.0, y: 0.0 },
+];
 
 const NO_BONDS: [TemplateBond; 0] = [];
 const DIATOMIC_BOND: [TemplateBond; 1] = [TemplateBond { a: 0, b: 1 }];
@@ -163,13 +208,16 @@ const WATER_BONDS: [TemplateBond; 2] = [
     TemplateBond { a: 0, b: 2 },
 ];
 
-/// ABI v2 ingredient ids: 0 H, 1 O, 2 H2, 3 O2, 4 H2O.
-pub const INGREDIENTS: [IngredientTemplate; 5] = [
+/// ABI v3 ingredient ids: 0 H, 1 O, 2 H2, 3 O2, 4 H2O,
+/// 5 generic two-ended monomer, 6 generic three-way junction.
+pub const INGREDIENTS: [IngredientTemplate; 7] = [
     IngredientTemplate { atoms: &H_ATOMS, bonds: &NO_BONDS },
     IngredientTemplate { atoms: &O_ATOMS, bonds: &NO_BONDS },
     IngredientTemplate { atoms: &H2_ATOMS, bonds: &DIATOMIC_BOND },
     IngredientTemplate { atoms: &O2_ATOMS, bonds: &DIATOMIC_BOND },
     IngredientTemplate { atoms: &H2O_ATOMS, bonds: &WATER_BONDS },
+    IngredientTemplate { atoms: &MONOMER_ATOMS, bonds: &DIATOMIC_BOND },
+    IngredientTemplate { atoms: &JUNCTION_ATOMS, bonds: &NO_BONDS },
 ];
 
 #[derive(Clone, Debug)]

@@ -1,10 +1,12 @@
 use crate::model::{
     angle_preference_energy, deterministic_direction, pair_param, target_temperature,
     ElementParam, PairParam, Rng, ABI_VERSION, BOND_BREAKING, BOND_FORMING, BOND_STABLE,
-    BOND_STRESSED, ELEMENTS, ELEMENT_H, ELEMENT_O, EXPERIMENT_BREAK_BOND,
-    EXPERIMENT_FREE_PLAY, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND, FIXED_DT,
-    H_O_H_ANGLE_RADIANS, H_O_H_ANGLE_STIFFNESS, INGREDIENTS, MAX_ATOMS, MAX_SPEED,
-    MODEL_VERSION, NEIGHBOR_CELL, WORLD_LIMIT,
+    BOND_STRESSED, ELEMENTS, ELEMENT_H, ELEMENT_M, ELEMENT_O, ELEMENT_X,
+    EXPERIMENT_BREAK_BOND, EXPERIMENT_EVERYTHING, EXPERIMENT_FREE_PLAY,
+    EXPERIMENT_GROW_CHAIN, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND,
+    EXPERIMENT_POLYMER_FREE_PLAY, EXPERIMENT_STRETCH_CHAIN, FIXED_DT,
+    H_O_H_ANGLE_RADIANS, H_O_H_ANGLE_STIFFNESS, INGREDIENTS, MAX_ATOMS,
+    MAX_SPEED, MODEL_VERSION, NEIGHBOR_CELL, WORLD_LIMIT,
 };
 use std::collections::VecDeque;
 
@@ -227,7 +229,7 @@ impl World {
     }
 
     pub fn load_experiment(&mut self, experiment: u32) -> u32 {
-        if experiment > EXPERIMENT_FREE_PLAY as u32 {
+        if experiment > EXPERIMENT_EVERYTHING as u32 {
             self.refresh();
             return 0;
         }
@@ -257,6 +259,10 @@ impl World {
             EXPERIMENT_BREAK_BOND => self.load_break_bond(),
             EXPERIMENT_IGNITE => self.load_ignite(),
             EXPERIMENT_FREE_PLAY => self.load_free_play(),
+            EXPERIMENT_GROW_CHAIN => self.load_grow_chain(),
+            EXPERIMENT_STRETCH_CHAIN => self.load_stretch_chain(),
+            EXPERIMENT_POLYMER_FREE_PLAY => self.load_polymer_free_play(),
+            EXPERIMENT_EVERYTHING => self.load_everything(),
             _ => unreachable!(),
         }
         self.compute_forces_and_bond_states(false);
@@ -305,6 +311,52 @@ impl World {
         self.spawn_template_at(3, 105.0, -40.0, -0.25, -4.0, 3.0);
         self.push_atom(ELEMENT_H, 82.0, 76.0, -10.0, -5.0);
         self.push_atom(ELEMENT_O, 135.0, 82.0, -7.0, -4.0);
+    }
+
+    fn load_grow_chain(&mut self) {
+        self.temperature_u = 0.32;
+        for index in 0..8 {
+            let center_x = -112.0 + index as f64 * 32.0;
+            let drift_x = 17.5 - index as f64 * 5.0;
+            self.spawn_template_at(5, center_x, 0.0, 0.0, drift_x, 0.0);
+        }
+        for atom in &mut self.atoms {
+            if atom.element == ELEMENT_M { atom.excitation = 44.0; }
+        }
+    }
+
+    fn load_stretch_chain(&mut self) {
+        self.temperature_u = 0.18;
+        let mut previous: Option<usize> = None;
+        for index in 0..16 {
+            let atom = self.push_atom(ELEMENT_M, -135.0 + index as f64 * 18.0, 0.0, 0.0, 0.0);
+            if let Some(left) = previous { self.add_stable_bond(left, atom); }
+            previous = Some(atom);
+        }
+    }
+
+    fn load_polymer_free_play(&mut self) {
+        self.temperature_u = 0.42;
+        let placements = [
+            (-112.0, -72.0, 0.18),
+            (-34.0, 58.0, -0.42),
+            (42.0, -64.0, 0.72),
+            (112.0, 48.0, -0.16),
+            (2.0, 8.0, 1.18),
+        ];
+        for (x, y, rotation) in placements {
+            self.spawn_template_at(5, x, y, rotation, 0.0, 0.0);
+        }
+        self.push_atom(ELEMENT_X, 0.0, -118.0, 0.0, 5.0);
+        self.push_atom(ELEMENT_X, 128.0, -88.0, -5.0, 3.0);
+    }
+
+    fn load_everything(&mut self) {
+        self.load_free_play();
+        self.temperature_u = 0.40;
+        self.spawn_template_at(5, -12.0, -112.0, 0.16, 3.0, 4.0);
+        self.spawn_template_at(5, 72.0, 122.0, -0.48, -4.0, -3.0);
+        self.push_atom(ELEMENT_X, -155.0, -112.0, 4.0, 2.0);
     }
 
     fn push_atom(&mut self, element: u8, x: f64, y: f64, vx: f64, vy: f64) -> usize {

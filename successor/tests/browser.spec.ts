@@ -31,6 +31,60 @@ test("populated first paint exposes four modes and direct manipulation", async (
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
+test("system rail opens a causal polymer world and an all-ingredients sandbox", async ({
+  page,
+}) => {
+  await openReadyWorld(page);
+  await page.getByRole("button", { name: "Polymers", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Grow a chain", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stretch a chain", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", {
+    name: "Add one two-ended monomer. Hold to add a stream.",
+  })).toBeVisible();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/16 atoms/, {
+    timeout: 4_000,
+  });
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/15 bonds/, {
+    timeout: 6_000,
+  });
+
+  await page.getByRole("button", { name: "Everything", exact: true }).click();
+  await expect(page.getByRole("button", {
+    name: "Add one Water molecule. Hold to add a stream.",
+  })).toBeVisible();
+  await expect(page.getByRole("button", {
+    name: "Add one three-way junction. Hold to add a stream.",
+  })).toBeVisible();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/14 atoms/, {
+    timeout: 4_000,
+  });
+});
+
+test("stretch experience turns a direct pull into visible polymer bond stress", async ({
+  page,
+}) => {
+  await openReadyWorld(page);
+  await page.getByRole("button", { name: "Polymers", exact: true }).click();
+  await page.getByRole("button", { name: "Stretch a chain", exact: true }).click();
+  const canvas = page.locator(".molecular-canvas");
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  const centerX = bounds!.x + bounds!.width / 2;
+  const centerY = bounds!.y + bounds!.height / 2;
+  await page.mouse.move(centerX - 135, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX - 285, centerY, { steps: 18 });
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/1 grabbed/, {
+    timeout: 3_000,
+  });
+  await expect(page.locator('[aria-live="polite"]')).toContainText(
+    /[1-9]\d* stressed|[1-9]\d* breaking|1[0-4] bonds/,
+    { timeout: 5_000 },
+  );
+  await page.mouse.up();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
 test("spark placement starts visible ignition while temperature endpoints remain semantic", async ({
   page,
 }) => {
@@ -98,10 +152,18 @@ test("mobile controls remain on-screen and reduced motion retains causal state",
   await page.emulateMedia({ reducedMotion: "reduce" });
   await openReadyWorld(page);
   const tray = page.locator(".ingredient-tray");
+  const systems = page.locator(".system-switcher");
+  const experiences = page.locator(".experiment-switcher");
   const temperature = page.locator(".temperature-control");
   const trayBounds = await tray.boundingBox();
+  const systemsBounds = await systems.boundingBox();
+  const experiencesBounds = await experiences.boundingBox();
   const temperatureBounds = await temperature.boundingBox();
   expect(trayBounds!.y + trayBounds!.height).toBeLessThanOrEqual(845);
+  expect(systemsBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(systemsBounds!.x + systemsBounds!.width).toBeLessThanOrEqual(390);
+  expect(experiencesBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(experiencesBounds!.x + experiencesBounds!.width).toBeLessThanOrEqual(390);
   expect(temperatureBounds!.x).toBeGreaterThanOrEqual(0);
   expect(temperatureBounds!.x + temperatureBounds!.width).toBeLessThanOrEqual(390);
   expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
