@@ -1,33 +1,22 @@
-/**
- * Stable numeric ids shared with the frozen engine ABI.
- *
- * This module contains presentation metadata only. Initial atom coordinates are
- * used to draw tray thumbnails; they are not spawn templates or physics input.
- */
+/** Presentation metadata for the intentionally breaking ABI v2 catalog. */
 
-export const ENGINE_SPECIES_ID = {
-  water: 0,
-  hydrogen: 1,
-  oxygen: 2,
-  methane: 3,
-  ammonia: 4,
-  "carbon-dioxide": 5,
-  sodium: 6,
-  chloride: 7,
+export const ENGINE_INGREDIENT_ID = {
+  hydrogenAtom: 0,
+  oxygenAtom: 1,
+  hydrogen: 2,
+  oxygen: 3,
+  water: 4,
 } as const;
 
 export const ENGINE_ELEMENT_ID = {
   H: 0,
-  C: 1,
-  N: 2,
-  O: 3,
-  Na: 4,
-  Cl: 5,
+  O: 1,
 } as const;
 
-export type SpeciesKey = keyof typeof ENGINE_SPECIES_ID;
+export type IngredientKey = keyof typeof ENGINE_INGREDIENT_ID;
 export type ElementKey = keyof typeof ENGINE_ELEMENT_ID;
-export type EngineSpeciesId = (typeof ENGINE_SPECIES_ID)[SpeciesKey];
+export type EngineIngredientId =
+  (typeof ENGINE_INGREDIENT_ID)[IngredientKey];
 export type EngineElementId = (typeof ENGINE_ELEMENT_ID)[ElementKey];
 
 export type ElementPresentation = Readonly<{
@@ -35,6 +24,7 @@ export type ElementPresentation = Readonly<{
   symbol: ElementKey;
   color: string;
   rim: string;
+  glow: string;
   radius: number;
 }>;
 
@@ -44,188 +34,98 @@ export type ThumbnailAtom = Readonly<{
   y: number;
 }>;
 
-export type Species = Readonly<{
-  id: SpeciesKey;
-  engineId: EngineSpeciesId;
+export type Ingredient = Readonly<{
+  id: IngredientKey;
+  engineId: EngineIngredientId;
   formula: string;
   name: string;
   atoms: readonly ThumbnailAtom[];
-  bonds: readonly (readonly [number, number])[];
-  defaultQuantity: number;
+  bonds: readonly (readonly [number, number, 1 | 2])[];
 }>;
 
 export const ELEMENTS = {
   H: {
     id: ENGINE_ELEMENT_ID.H,
     symbol: "H",
-    color: "#F7F2E8",
-    rim: "#B8CAD8",
+    color: "#f4f1e8",
+    rim: "#b9ccd8",
+    glow: "rgba(211, 241, 255, .52)",
     radius: 7,
-  },
-  C: {
-    id: ENGINE_ELEMENT_ID.C,
-    symbol: "C",
-    color: "#3F536B",
-    rim: "#9DB3C7",
-    radius: 11,
-  },
-  N: {
-    id: ENGINE_ELEMENT_ID.N,
-    symbol: "N",
-    color: "#6D7DFF",
-    rim: "#ABB5FF",
-    radius: 10.5,
   },
   O: {
     id: ENGINE_ELEMENT_ID.O,
     symbol: "O",
-    color: "#FF626B",
-    rim: "#FFB1B5",
+    color: "#ff646d",
+    rim: "#ffadb2",
+    glow: "rgba(255, 102, 112, .48)",
     radius: 10,
-  },
-  Na: {
-    id: ENGINE_ELEMENT_ID.Na,
-    symbol: "Na",
-    color: "#AE78FF",
-    rim: "#D9C2FF",
-    radius: 13,
-  },
-  Cl: {
-    id: ENGINE_ELEMENT_ID.Cl,
-    symbol: "Cl",
-    color: "#63DE8A",
-    rim: "#B7F4CA",
-    radius: 14,
   },
 } as const satisfies Record<ElementKey, ElementPresentation>;
 
 export const ELEMENTS_BY_ENGINE_ID: readonly ElementPresentation[] = [
   ELEMENTS.H,
-  ELEMENTS.C,
-  ELEMENTS.N,
   ELEMENTS.O,
-  ELEMENTS.Na,
-  ELEMENTS.Cl,
 ];
 
-export const SPECIES: readonly Species[] = [
+export const INGREDIENTS: readonly Ingredient[] = [
   {
-    id: "water",
-    engineId: ENGINE_SPECIES_ID.water,
-    formula: "H₂O",
-    name: "Water",
-    atoms: [
-      { element: "O", x: 0, y: 0 },
-      { element: "H", x: -13, y: 11 },
-      { element: "H", x: 13, y: 11 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-    ],
-    defaultQuantity: 18,
+    id: "hydrogenAtom",
+    engineId: ENGINE_INGREDIENT_ID.hydrogenAtom,
+    formula: "H",
+    name: "Hydrogen atom",
+    atoms: [{ element: "H", x: 0, y: 0 }],
+    bonds: [],
+  },
+  {
+    id: "oxygenAtom",
+    engineId: ENGINE_INGREDIENT_ID.oxygenAtom,
+    formula: "O",
+    name: "Oxygen atom",
+    atoms: [{ element: "O", x: 0, y: 0 }],
+    bonds: [],
   },
   {
     id: "hydrogen",
-    engineId: ENGINE_SPECIES_ID.hydrogen,
+    engineId: ENGINE_INGREDIENT_ID.hydrogen,
     formula: "H₂",
-    name: "Hydrogen",
+    name: "Hydrogen molecule",
     atoms: [
       { element: "H", x: -8, y: 0 },
       { element: "H", x: 8, y: 0 },
     ],
-    bonds: [[0, 1]],
-    defaultQuantity: 24,
+    bonds: [[0, 1, 1]],
   },
   {
     id: "oxygen",
-    engineId: ENGINE_SPECIES_ID.oxygen,
+    engineId: ENGINE_INGREDIENT_ID.oxygen,
     formula: "O₂",
-    name: "Oxygen",
+    name: "Oxygen molecule",
     atoms: [
       { element: "O", x: -10, y: 0 },
       { element: "O", x: 10, y: 0 },
     ],
-    bonds: [[0, 1]],
-    defaultQuantity: 12,
+    bonds: [[0, 1, 2]],
   },
   {
-    id: "methane",
-    engineId: ENGINE_SPECIES_ID.methane,
-    formula: "CH₄",
-    name: "Methane",
+    id: "water",
+    engineId: ENGINE_INGREDIENT_ID.water,
+    formula: "H₂O",
+    name: "Water molecule",
     atoms: [
-      { element: "C", x: 0, y: 0 },
-      { element: "H", x: -17, y: 0 },
-      { element: "H", x: 17, y: 0 },
-      { element: "H", x: 0, y: -17 },
-      { element: "H", x: 0, y: 17 },
+      { element: "O", x: 0, y: 0 },
+      { element: "H", x: -13.45, y: 10.36 },
+      { element: "H", x: 13.45, y: 10.36 },
     ],
     bonds: [
-      [0, 1],
-      [0, 2],
-      [0, 3],
-      [0, 4],
+      [0, 1, 1],
+      [0, 2, 1],
     ],
-    defaultQuantity: 6,
-  },
-  {
-    id: "ammonia",
-    engineId: ENGINE_SPECIES_ID.ammonia,
-    formula: "NH₃",
-    name: "Ammonia",
-    atoms: [
-      { element: "N", x: 0, y: 0 },
-      { element: "H", x: -15, y: 8 },
-      { element: "H", x: 15, y: 8 },
-      { element: "H", x: 0, y: -16 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-      [0, 3],
-    ],
-    defaultQuantity: 8,
-  },
-  {
-    id: "carbon-dioxide",
-    engineId: ENGINE_SPECIES_ID["carbon-dioxide"],
-    formula: "CO₂",
-    name: "Carbon dioxide",
-    atoms: [
-      { element: "C", x: 0, y: 0 },
-      { element: "O", x: -19, y: 0 },
-      { element: "O", x: 19, y: 0 },
-    ],
-    bonds: [
-      [0, 1],
-      [0, 2],
-    ],
-    defaultQuantity: 10,
-  },
-  {
-    id: "sodium",
-    engineId: ENGINE_SPECIES_ID.sodium,
-    formula: "Na⁺",
-    name: "Sodium ion",
-    atoms: [{ element: "Na", x: 0, y: 0 }],
-    bonds: [],
-    defaultQuantity: 16,
-  },
-  {
-    id: "chloride",
-    engineId: ENGINE_SPECIES_ID.chloride,
-    formula: "Cl⁻",
-    name: "Chloride ion",
-    atoms: [{ element: "Cl", x: 0, y: 0 }],
-    bonds: [],
-    defaultQuantity: 16,
   },
 ];
 
-export const SPECIES_BY_KEY = Object.fromEntries(
-  SPECIES.map((species) => [species.id, species]),
-) as Record<SpeciesKey, Species>;
+export const INGREDIENTS_BY_KEY = Object.fromEntries(
+  INGREDIENTS.map((ingredient) => [ingredient.id, ingredient]),
+) as Record<IngredientKey, Ingredient>;
 
 export function elementPresentation(
   engineId: number,
@@ -233,19 +133,27 @@ export function elementPresentation(
   return ELEMENTS_BY_ENGINE_ID[engineId];
 }
 
-export function speciesEngineId(
-  species: Species | SpeciesKey | EngineSpeciesId,
-): EngineSpeciesId {
-  if (typeof species === "number") {
-    if (Number.isInteger(species) && species >= 0 && species < SPECIES.length) {
-      return species as EngineSpeciesId;
+export function ingredientEngineId(
+  ingredient: Ingredient | IngredientKey | EngineIngredientId,
+): EngineIngredientId {
+  if (typeof ingredient === "number") {
+    if (
+      Number.isInteger(ingredient) &&
+      ingredient >= 0 &&
+      ingredient < INGREDIENTS.length
+    ) {
+      return ingredient as EngineIngredientId;
     }
-    throw new RangeError(`Unknown engine species id: ${species}`);
+    throw new RangeError(`Unknown engine ingredient id: ${ingredient}`);
   }
-  if (typeof species === "string") {
-    const id = ENGINE_SPECIES_ID[species];
+  if (typeof ingredient === "string") {
+    const id = ENGINE_INGREDIENT_ID[ingredient];
     if (id !== undefined) return id;
-    throw new RangeError(`Unknown species key: ${species}`);
+    throw new RangeError(`Unknown ingredient key: ${ingredient}`);
   }
-  return species.engineId;
+  return ingredient.engineId;
+}
+
+if (ELEMENTS_BY_ENGINE_ID.length !== 2) {
+  throw new Error("The presentation catalog does not match engine ABI v2.");
 }

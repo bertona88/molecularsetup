@@ -6,10 +6,10 @@
   "domain": "molecularsetup.com",
   "url": "https://molecularsetup.com/",
   "field": "Molecular and materials systems",
-  "status": "preliminary-wrapper",
+  "status": "chemistry-intuition-v2-candidate",
   "rebuild": "from-scratch",
   "plannedInteroperability": true,
-  "interfaceContract": null,
+  "interfaceContract": "INTERFACE_CONTRACT.md",
   "greenfieldContracts": {
     "vision": "VISION.md",
     "domainModel": "MOLECULAR_MODEL_CONTRACT.md",
@@ -17,9 +17,9 @@
     "claimsAndValidation": "CLAIMS_AND_VALIDATION.md",
     "acceptance": "ACCEPTANCE_TESTS.md"
   },
-  "firstAcceptedSlice": "Build one reduced-unit Lennard–Jones box with a documented force field, ensemble, integrator, timestep, thermostat, and quantitative energy-drift validation.",
+  "firstAcceptedSlice": "A populated bonding-first H/O teaching world where collision, activation, explicit bond state, energy traces, atom grabbing, and finite-speed piston response are perceptually causal and numerically gated.",
   "ownershipBoundary": "MolecularSetup owns molecular/material state and response; OpticalSetup owns instrument propagation; QuantumSetup owns explicitly quantum evolution; downstream setups consume material properties through versioned ports.",
-  "claimGate": "The force-field validity domain, ensemble, integrator, timestep, and mapping to physical units must be explicit; no chemical identity, reaction, toxicity, or material-qualification claim is allowed by default.",
+  "claimGate": "The v2 model is reduced, dimensionless, planar, pedagogical, and non-predictive; compressed masses and teaching parameters must remain explicit, and no displayed topology, pathway, rate, equilibrium, temperature, pressure, toxicity, or material-qualification claim is allowed by default.",
   "currentPrototype": {
     "status": "temporary-live-demo",
     "role": "reference-snapshot",

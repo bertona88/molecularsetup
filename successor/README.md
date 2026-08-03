@@ -1,74 +1,64 @@
-# MolecularSetup Rust/Wasm canvas successor
+# MolecularSetup chemistry-intuition successor
 
-This directory contains the greenfield browser prototype described by the
-repository contracts at the project root.
+This directory contains the static React/Canvas2D browser shell and the
+deterministic Rust/WebAssembly bonding engine for ABI/model v2.
 
-## What is implemented
+## Experience
 
-- full-viewport 2D canvas;
-- eight visual starting species;
-- detented nonlinear quantity selection from 1 to 1000 molecules, with every
-  integer available through native input and keyboard controls;
-- tap and drag spawning with bounded per-frame insertion;
-- a dependency-free Rust engine compiled to a zero-import WebAssembly module;
-- fixed-step velocity-Verlet or BAOAB Langevin integration;
-- continuous energy-derived pair forces and over-coordination cost;
-- fixed charges and continuous state-derived bond order, with no reaction or
-  product lookup table;
-- drawable rectangular boundaries and draggable piston walls;
-- temperature, pause, hold-to-reset, pan, wheel zoom, and pinch zoom;
-- responsive touch-first tray and accessible control labels.
+- populated Make a bond, Break a bond, Ignite, and Free play experiments;
+- H, O, H2, O2, and H2O ingredients, one per tap/drag and streamed on hold;
+- explicit forming, stable, stressed, and breaking bonds drawn above atoms;
+- decaying local spark excitation and persistent causal event traces;
+- spring atom grabbing, empty-canvas pan, wheel/pinch zoom;
+- broad horizontal Cold/Warm/Hot control;
+- one four-wall container with a finite-speed right piston;
+- no numerical dashboard, inspector, product selector, or arbitrary boundary
+  creation.
 
-Rust owns particles, forces, randomness, integration, boundaries, accounting,
-and derived bond/event views. `src/App.tsx` is a presentation and gesture shell;
-`lib/molecular-world.ts` validates the ABI and consumes packed typed arrays. No
-JavaScript physics fallback exists.
+Rust owns dynamics, bonds, randomness, walls, events, and ledgers. TypeScript
+validates packed Wasm views, handles gestures/accessibility/camera, and renders
+Canvas2D. There is no JavaScript simulation fallback. Blocked, corrupt, or
+wrong-version Wasm leaves an explicit inert world.
 
-The application is completely static. Vite emits `dist/index.html`, browser
-assets, and the checked-in Wasm module. There is no Worker, server-rendering
-runtime, API route, database, object storage, or remote simulation service.
-
-## Run
+## Run local browser shell
 
 ```sh
 npm ci
 npm run dev
 ```
 
-## Validate
+## Lightweight checks
 
 ```sh
+npm run typecheck
 npm run lint
-npm test
 ```
 
-The verified Wasm artifact is checked in, so normal development and application
-builds do not require Rust. Rebuilds use the repository-pinned Rust 1.74.0
-toolchain and `wasm32-unknown-unknown` target, then run:
+## Rust/Wasm and full checks
+
+The checked-in Wasm lets normal static builds run without a Rust installation.
+Rebuilding uses the pinned Rust toolchain and `wasm32-unknown-unknown`; perform
+that and heavyweight browser testing on `devbox-home` or CI:
 
 ```sh
 npm run test:engine:native
 npm run engine:build
+npm test
+npx playwright install --with-deps chromium
+npm run test:browser
 ```
 
-`npm test` verifies source/artifact consistency, builds the static application,
-and tests the HTML entry, interaction contract, real Wasm ABI, deterministic
-replay, and browser/engine architecture boundary.
+`engine:build` compiles locked/offline, runs the real-Wasm ABI test, publishes
+the artifact and manifest, verifies source/artifact hashes, and requires zero
+imports plus ABI/model `2/2`.
 
-## GitHub Pages
+## Claim boundary
 
-The repository workflow builds and tests pull requests. A push to `main` also
-uploads `dist/` and deploys it through the protected `github-pages`
-environment. Asset paths are relative, so the same artifact works at the
-repository Pages path and later at `molecularsetup.com`.
+The model is dimensionless, planar, reduced, pedagogical, and non-predictive.
+Its oxygen mass is deliberately compressed and its bond parameters are not a
+calibrated force field. Read `../MOLECULAR_MODEL_CONTRACT.md`,
+`engine/ENGINE_ABI.md`, `../CLAIMS_AND_VALIDATION.md`, and
+`../ACCEPTANCE_TESTS.md` before changing or presenting behavior.
 
-GitHub Pages must use **GitHub Actions** as its publishing source. A custom
-domain and DNS cutover are deliberately not encoded in this branch.
-
-## Model status
-
-This is a qualitative 2D pedagogical model, not predictive chemistry. Its
-starting structures are atom/geometry/charge presets; later motion and
-connectivity follow the continuous model without product recipes. Read
-`../MOLECULAR_MODEL_CONTRACT.md`, `engine/ENGINE_ABI.md`, and
-`../CLAIMS_AND_VALIDATION.md` before changing or presenting it.
+The application is static. Deployment, DNS, and production replacement are
+outside this implementation candidate.

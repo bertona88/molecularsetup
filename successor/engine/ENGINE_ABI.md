@@ -1,121 +1,167 @@
-# MolecularSetup engine ABI
+# MolecularSetup engine ABI v2
 
 ## Scope
 
-This crate is a deterministic, reduced-unit, two-dimensional teaching model.
-It is not predictive chemistry. It has no product or reaction table. Starting
-species provide only atom elements, positions, and fixed initial charges;
-continuous model state determines forces and the bond/event views.
+This crate is a deterministic, reduced-unit, two-dimensional bonding teaching
+model. It is non-predictive chemistry and has no reaction/product lookup. The
+ABI is dependency-free C/Wasm: a `wasm32-unknown-unknown` release exports
+linear `memory`, imports nothing, and owns one module-global world.
 
-The ABI is dependency-free C/Wasm. A `wasm32-unknown-unknown` release must
-export its linear `memory` and have zero imports. All numerical commands mutate
-one module-global world. Call `ms_reset(seed)` before replaying a recipe.
+ABI v2 is intentionally incompatible with v1. Both `ms_abi_version()` and
+`ms_model_version()` return `2`.
 
 ## Commands
 
-All integers are unsigned 32-bit values and all scalar coordinates are `f64`.
+Integers are unsigned 32-bit values. Coordinates, heat, energy, radius, frame
+time, and piston target are `f64`.
 
 | Export | Result |
 |---|---|
-| `ms_reset(seed)` | Clear all state and restore defaults using `seed`. |
-| `ms_set_playing(0_or_1)` | Pause or resume integration. |
-| `ms_set_temperature(u)` | Clamp the thermal control to `[0, 1]`. |
-| `ms_set_thermostat_gamma(gamma)` | Set Langevin friction; `0` selects NVE-like integration. |
-| `ms_spawn(species, count, x, y)` | Queue up to `count` whole molecules and return the accepted molecule count. |
-| `ms_flush_spawns(limit)` | Materialize at most `limit` queued whole molecules; return the number materialized. |
-| `ms_advance(real_delta_ms)` | Accumulate wall time, execute at most five fixed `1/120` steps, and return the step count. |
-| `ms_step_fixed(count)` | Execute exactly `count` fixed steps (diagnostics/replay) and return the step count. |
-| `ms_create_boundary(x, y, width, height)` | Create a rectangle and return its nonzero id, or `0` if invalid. |
-| `ms_move_boundary_edge(id, edge, coordinate)` | Move edge `0=left, 1=right, 2=top, 3=bottom`; return `1` on success. |
-| `ms_remove_boundary(id)` | Remove a rectangle; return `1` on success. |
+| `ms_reset(seed)` | Recreate the seeded populated Make a bond world. |
+| `ms_load_experiment(id)` | Load `0 Make`, `1 Break`, `2 Ignite`, or `3 Free play`; return `1`, else `0`. |
+| `ms_set_playing(0_or_1)` | Pause/resume browser-time advance. |
+| `ms_set_temperature(u)` | Clamp semantic heat to `[0,1]`. |
+| `ms_spawn_ingredient(id,count,x,y)` | Insert whole ingredients and return accepted count. |
+| `ms_apply_spark(x,y,energy,radius)` | Add an expanding excitation wave; return `1`, else `0`. |
+| `ms_grab_atom(atom_id,x,y)` | Attach the spring grab; return `1`, else `0`. |
+| `ms_drag_atom(atom_id,x,y)` | Move a matching grab target; return `1`, else `0`. |
+| `ms_release_atom(atom_id)` | Release a matching grab; return `1`, else `0`. |
+| `ms_set_piston_target(x)` | Clamp/set right-wall target without moving it immediately; return `1`, else `0`. |
+| `ms_advance(real_delta_ms)` | Execute at most five accumulated fixed steps; return executed count. |
+| `ms_step_fixed(count)` | Execute exactly `count` fixed steps for replay/tests. |
 
-Species ids are stable for ABI version 1: `0 H2O`, `1 H2`, `2 O2`, `3 CH4`,
-`4 NH3`, `5 CO2`, `6 Na+`, `7 Cl-`. Quantity always means complete molecules.
-The atom capacity is 18,000; `ms_spawn` truncates only at a whole-molecule
-boundary after accounting for already queued atoms.
+Ingredient ids are `0 H`, `1 O`, `2 H2`, `3 O2`, `4 H2O`. Count always means
+whole templates and is limited by the 18,000-atom capacity.
 
-Moving a wall constrains assigned atoms immediately even while paused. The
-change in mechanical energy caused by that instantaneous edit is added to the
-boundary-work ledger. It is a bookkeeping convention, not a calibrated piston.
+Every command can grow memory or replace a packed vector. It invalidates every
+previous pointer and JavaScript typed-array view. Reacquire all views after
+every mutation, including setters and failures.
 
-## Views
+Only steps executed by `ms_advance` or `ms_step_fixed` advance model clocks,
+bond lifecycle, or pending pointer work. Other commands may refresh packed
+views but cannot progress a forming/breaking bond in a paused world. A changed
+grab target contributes signed work at most once, on the next executed step.
+
+## Packed views
 
 Each view has `ms_<name>_ptr()`, `ms_<name>_len()`, and
-`ms_<name>_stride()` exports. `len` is the number of `f32` or `f64` scalar
-values, not the record count. Read only complete records. Every command may
-grow Wasm memory or replace a vector and therefore invalidates all previous
-JavaScript `TypedArray` objects and pointers. Recreate views after every
-mutating call; never retain a pointer across a command.
+`ms_<name>_stride()`. Length is scalar count, not record count. Empty `f32`
+views may use pointer `0`; stats always contains one complete `f64` record.
 
 ### Atoms (`f32`, stride 16)
 
-| Field | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Meaning | id | element | x | y | previous x | previous y | vx | vy |
+| Index | Meaning |
+|---:|---|
+| 0 | stable atom id |
+| 1 | element (`0 H`, `1 O`) |
+| 2–3 | x, y |
+| 4–5 | previous x, y |
+| 6–7 | vx, vy |
+| 8 | radius |
+| 9 | decaying excitation |
+| 10 | grabbed (`0/1`) |
+| 11 | reserved/used integer valence |
+| 12 | finite-state flags |
+| 13 | kinetic energy |
+| 14 | age |
+| 15 | reserved (`0`) |
 
-| Field | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Meaning | fx | fy | charge | radius | coordination | boundary id | age | flags |
+### Bonds (`f32`, stride 10)
 
-Element ids: `0 H`, `1 C`, `2 N`, `3 O`, `4 Na`, `5 Cl`. Boundary id `0`
-means uncontained. Atom indices are append-only until reset.
+| Index | Meaning |
+|---:|---|
+| 0 | stable bond id |
+| 1–2 | atom indices A, B |
+| 3 | integer order (`1/2`) |
+| 4 | state (`0 forming`, `1 stable`, `2 stressed`, `3 breaking`) |
+| 5 | progress `[0,1]` |
+| 6 | fractional strain |
+| 7 | current explicit bond energy |
+| 8 | rest length |
+| 9 | age |
 
-### Bonds (`f32`, stride 6)
+Bonds drive dynamics and reserve valence; they are not a derived display
+threshold.
 
-`atom index A, atom index B, continuous order, fractional strain, Morse well
-depth, flags`. Bonds are a derived display graph rebuilt from continuous bond
-order and valence capacity. They never drive dynamics. Flags are reserved and
-currently zero.
+### Walls (`f32`, stride 10)
 
-### Boundaries (`f32`, stride 11)
+There are always four records in edge order `0 left`, `1 right`, `2 top`,
+`3 bottom`.
 
-`id, x, y, width, height, impact, left load, right load, top load, bottom load,
-assigned atom count`. Loads and impact are reduced qualitative values.
+| Index | Meaning |
+|---:|---|
+| 0 | wall id |
+| 1 | edge |
+| 2 | x for vertical wall, y for horizontal wall |
+| 3–4 | span start, end on the orthogonal axis |
+| 5 | wall velocity |
+| 6 | rolling impulse load |
+| 7 | recent impact response |
+| 8 | target position |
+| 9 | movable (`1` only for right piston) |
 
-### Events (`f32`, stride 8)
+### Events (`f32`, stride 10)
 
-`kind, atom index A, atom index B, x, y, magnitude, age, boundary id`.
-Missing atom indices are `-1`. Kinds are `1 bond formed`, `2 bond broken`, and
-`3 wall impact`. Events are short-lived observations of threshold crossings;
-they never trigger or alter dynamics.
+| Index | Meaning |
+|---:|---|
+| 0 | kind |
+| 1–2 | atom indices or `-1` |
+| 3–4 | x, y |
+| 5 | magnitude |
+| 6 | age |
+| 7 | lifetime |
+| 8 | signed event energy |
+| 9 | wall id or `0` |
 
-### Stats (`f64`, stride 21)
+Kinds: `1 collision`, `2 bond forming`, `3 bond formed`, `4 bond stressed`,
+`5 bond broken`, `6 spark`, `7 wall impact`, `8 energy pulse`. Lifetimes are
+1.2–2 seconds.
+
+### Statistics and ledgers (`f64`, stride 28)
 
 | Index | Meaning |
 |---:|---|
 | 0 | simulated time |
 | 1 | fixed timestep |
-| 2 | normalized temperature control |
-| 3 | target reduced temperature |
-| 4 | instantaneous kinetic temperature |
+| 2 | normalized heat control |
+| 3 | reduced thermostat target |
+| 4 | RMS atom speed |
 | 5 | kinetic energy |
-| 6 | potential energy |
-| 7 | mechanical energy |
-| 8 | cumulative thermostat heat |
-| 9 | cumulative boundary work |
-| 10 | atom count |
-| 11 | derived bond count |
-| 12 | boundary count |
-| 13 | pending molecule count |
-| 14 | seed |
-| 15 | completed fixed steps |
-| 16 | playing (`0` or `1`) |
-| 17 | atom capacity |
-| 18 | rejected molecule count |
-| 19 | model version (`1`) |
-| 20 | ABI version (`1`) |
+| 6 | explicit bond/angle potential energy |
+| 7 | kinetic + potential + excitation |
+| 8 | cumulative thermostat exchange |
+| 9 | cumulative formation release |
+| 10 | cumulative breaking absorption |
+| 11 | cumulative grab work |
+| 12 | cumulative wall work |
+| 13 | atom count |
+| 14 | bond count |
+| 15 | live event count |
+| 16 | seed |
+| 17 | completed fixed steps |
+| 18 | playing (`0/1`) |
+| 19 | atom capacity |
+| 20 | rejected ingredient count |
+| 21 | experiment id |
+| 22 | model version (`2`) |
+| 23 | ABI version (`2`) |
+| 24 | spark count |
+| 25 | collision count |
+| 26 | mean rolling wall load |
+| 27 | signed ledger combination |
 
-The exact Langevin Ornstein-Uhlenbeck update is
-`v <- exp(-gamma*dt) v + sqrt((1-exp(-2*gamma*dt))*T/m) N(0,1)` per component.
-Newtonian kicks use `F/m`. Heat index 8 records the kinetic-energy change in
-that thermostat substep. With `gamma=0`, no thermostat noise or heat is added.
+## Errors and guards
+
+Unknown ids, missing atom/grab ids, non-finite coordinates, invalid spark
+values, and invalid piston targets return `0` and preserve finite state.
+Non-finite heat is ignored. Paused or invalid frame deltas execute zero steps.
+Speed and coordinate guards prevent non-finite state but are outside any
+conservative energy claim.
 
 ## Model boundary
 
-The smooth energy contains short-range repulsion/dispersion, screened Coulomb,
-Morse attraction, and a continuous over-coordination penalty. Fixed partial
-charges do not redistribute as bonds change. The current core has no electronic
-structure, charge equilibration, stereochemistry, out-of-plane motion, or
-three-body angular energy. In particular, plausible motion or connectivity is
-not evidence that a pathway, product, rate, or equilibrium is chemically
-correct.
+The exact reduced rules, compressed H/O masses, collision response, valence,
+pair parameters, activation, angular preference, excitation, thermostat,
+piston, and ledgers are documented in `../../MOLECULAR_MODEL_CONTRACT.md`.
+Packed chemistry-like topology is not evidence of a real pathway, product,
+rate, equilibrium, temperature, pressure, or mechanism.

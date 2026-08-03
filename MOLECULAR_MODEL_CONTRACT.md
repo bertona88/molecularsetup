@@ -1,142 +1,199 @@
 # Molecular model contract
 
-## Status
+## Status and validity domain
 
-The active backend is a dependency-free Rust core compiled to WebAssembly. It
-is a deterministic, reduced-unit, two-dimensional reactive teaching model. It
-is scientifically structured but not calibrated or predictive chemistry.
+The active backend is a dependency-free Rust core compiled to WebAssembly. ABI
+and model versions are both `2`. It is a deterministic, reduced-unit,
+two-dimensional, pedagogical bonding model. It is non-predictive chemistry.
 
-The model parameterizes atoms and continuous interactions. It contains no
-reaction table, product graph, product molecule, or rule of the form
-`reactant A + reactant B -> product C`.
+The model contains no reaction lookup, product graph, desired-product term, or
+rule of the form `reactants -> water`. Experiment and ingredient templates set
+only initial atoms, positions, velocities, and explicit starting bonds. Every
+later connectivity change uses the same collision, valence, activation,
+formation, strain, and breaking rules.
 
-## State and starting species
+## State
 
-Every atom stores element, position, previous position, velocity, force, fixed
-charge, continuous coordination, age, and optional container assignment. The
-supported element parameters are H, C, N, O, Na, and Cl.
+Each atom stores a stable id, H/O element id, current and previous position,
+velocity, force, age, excitation, and finite-state flags. A single optional
+grab record identifies an atom and a pointer target; the target acts through a
+spring rather than a position edit.
 
-The starting catalog is H2O, H2, O2, CH4, NH3, CO2, Na+, and Cl-. A starting
-template supplies only elements, planar geometry, and initial fixed charges.
-It does not create permanent bonds. The force model immediately evaluates that
-geometry in exactly the same way as any later configuration.
+Each bond is first-class model state with:
 
-Rendered bonds are a derived observation of continuous bond order. The
-display graph and its visual formation/breaking thresholds never feed back into
-energy, forces, or trajectories.
+- stable id and atom indices;
+- integer order;
+- `forming`, `stable`, `stressed`, or `breaking` state;
+- normalized progress;
+- preferred length, fractional strain, energy, age, and stress clock.
 
-## Coordinates and reduced units
+Each of four container walls stores edge, position, span, velocity, rolling
+load, recent impact, pointer target, and whether it is movable. The right wall
+is the only piston.
 
-- Coordinate frame: +x right and +y down in a strict plane.
-- Distance, time, mass, charge, energy, and temperature are reduced model
-  quantities, not SI values.
+Events persist for 1.2–2 seconds and identify collision, bond formation, bond
+completion, stress, break, spark, wall impact, or energy release. Statistics
+and energy ledgers are internal views, not persistent visual readouts.
+
+## Ingredients, valence, and pair parameters
+
+ABI v2 ingredient ids are:
+
+| Id | Ingredient | Initial bonds |
+|---:|---|---|
+| 0 | H | none |
+| 1 | O | none |
+| 2 | H2 | one stable H-H order-1 bond |
+| 3 | O2 | one stable O-O order-2 bond |
+| 4 | H2O | two stable O-H order-1 bonds |
+
+Hydrogen has valence capacity 1. Oxygen has valence capacity 2. A bond reserves
+its full integer order while forming, stable, stressed, or breaking, so no
+transient state may overfill valence.
+
+H-H, O-O, and O-H have versioned values for order, rest length, capture
+distance, spring stiffness, damping, activation barrier, formation time,
+dissociation energy, strain hysteresis, and excitation threshold. These are
+teaching parameters, not fitted bond energies or a published reactive force
+field.
+
+## Coordinates, time, and mass
+
+- Coordinate frame: +x right, +y down, strict plane.
 - Fixed step: `1/120` reduced time units.
-- Temperature control `u` is clamped to `[0, 1]` and maps to the model target
-  `0.025 * 58^u`.
-- Maximum work per animation frame is five fixed steps. Full overrun ticks are
-  discarded rather than increasing the timestep.
-- Atom capacity is 18,000. A quantity always means complete molecules.
+- Browser advance: at most five fixed steps per animation frame; full overrun
+  ticks are discarded and the sub-tick remainder is retained.
+- Only executed fixed steps advance atom/bond/event ages, bond lifecycle clocks,
+  or pending pointer work. View-refreshing commands such as ingredient insertion
+  do not advance a paused world.
+- Atom capacity: 18,000; ingredient counts are truncated only at whole-template
+  boundaries.
+- Hydrogen mass: 1 reduced unit.
+- Oxygen mass: 4 reduced units.
 
-No physical-unit conversion is currently defined. The UI therefore shows heat
-through motion and walls through impacts without printing kelvin, pascal,
-seconds, or energy values.
+The physical H:O mass ratio is about 1:16. The compressed 1:4 ratio is an
+explicit nonphysical scaling chosen so oxygen moves visibly at warm and hot
+settings while hydrogen still responds more readily.
 
-## Continuous energy and forces
+No conversion to SI distance, time, temperature, energy, or pressure exists.
 
-For the current planar configuration, the conservative part of the model is
+## Temperature and excitation
 
-`U = sum(U_pair(i,j)) + sum(U_overcoord(i))`.
+The semantic heat control `u` is clamped to `[0,1]` and maps to the reduced
+thermostat target
 
-Each pair term combines:
+`T(u) = 64 * 64^u`.
 
-1. differentiable soft short-range repulsion;
-2. damped dispersion-like attraction;
-3. a Morse covalent well derived from the two element parameter records;
-4. shielded, exponentially screened Coulomb interaction between fixed charges;
-5. a C2 switching function whose energy and first derivative reach zero at
-   the finite cutoff.
+The corresponding RMS velocity span is eight-fold for a fixed mass. A
+deterministic seeded Langevin update approaches that target and records kinetic
+energy change in the thermostat ledger. The endpoint span is a perceptual gate,
+not a thermodynamic calibration.
 
-Continuous bond order is a smooth radial function. An atom's coordination is
-the sum of its pair bond orders. A smooth over-coordination energy penalizes
-exceeding the element's preferred planar valence; its derivative contributes
-to every relevant pair force. Radicals and under-coordinated atoms are not
-forbidden by an integer valence gate.
+Spark energy is a separate, decaying per-atom excitation field. A spark creates
+an expanding wave; an atom receives excitation when the wavefront reaches it,
+with radial falloff. Excitation decays continuously. Sustained high heat also
+raises excitation above the top part of the heat range.
 
-Forces are the analytical negative gradient of this one energy, and
-acceleration uses `F / mass`. Element-pair parameters are model parameters, not
-reaction recipes.
+Stable H2/O2 bonds do not rearrange at the Ignite preset's initial heat.
+Sufficient excitation or mechanical strain moves a bond through stress and
+breaking hysteresis. For free atoms with available valence, excitation above
+the pair barrier can be converted into bounded inward encounter motion. That
+steering conserves pair momentum, consumes excitation when it raises kinetic
+energy, and never creates connectivity: a favorable collision must still occur
+before a bond can begin forming.
 
-## Integration and thermostat
+## Atom collisions and exact overlaps
 
-With thermostat friction set to zero, integration uses velocity Verlet. With
-nonzero friction, it uses a BAOAB Langevin split. The Ornstein-Uhlenbeck step is
+The engine uses a deterministic uniform spatial grid to enumerate nearby atom
+pairs. Nonbonded overlapping atoms receive:
 
-`v <- c*v + sqrt((1-c^2)*T/m)*N(0,1)`, where `c = exp(-gamma*dt)`.
+1. inverse-mass-weighted non-overlap correction;
+2. a normal impulse with finite restitution;
+3. equal and opposite momentum change;
+4. a persistent collision event.
 
-That stochastic step satisfies the model's fluctuation-dissipation relation.
-The engine separately records its kinetic-energy exchange. Spawning, insertion
-warmup, wall edits, wall restitution, and emergency finite-state guards are not
-conservative operations and are excluded from any NVE conservation claim.
+If centers coincide exactly, the normal is derived from the stable atom ids.
+It is never `(0,0)`, so no coincident configuration can remain overlapped with
+zero repulsive response.
 
-The random stream, queue order, fixed steps, and packed state are deterministic
-for the same engine version, seed, and command sequence. Cross-version or
-future GPU replay is not implied.
+## Bond formation, forces, and breaking
 
-## Spawning and responsiveness
+An eligible pair starts a finite-duration `forming` bond only when:
 
-A request for up to 1,000 molecules is queued in O(1) command work and
-materialized later in bounded batches of whole molecules. Capacity accounting
-includes queued atoms, so truncation cannot create a partial molecule.
+- the pair is H-H, O-O, or O-H;
+- both atoms have sufficient remaining integer valence;
+- the atoms collide or enter the contact shell while moving together;
+- relative collision energy plus excitation clears the activation barrier.
 
-New atoms ramp smoothly into pair interactions over a short insertion window.
-This is an explicit stability intervention for direct manipulation, not a
-physical deposition protocol. It makes the energy function time-dependent
-during insertion.
+Forming progress scales the damped spring force until completion. Completion
+enters `stable`, records dissociation-scale energy in the formation ledger,
+adds bounded local excitation, and emits bond and energy pulses.
 
-## Boundaries
+A stable bond enters `stressed` above its strain-on or excitation threshold. It
+returns to stable only below lower off-thresholds. Sustained or severe stress
+enters `breaking`; progress and force then decay over finite time. Removal
+records breaking absorption and a persistent break event. This hysteresis keeps
+the bond state legible and prevents one-frame flicker. The just-broken atom pair
+also has a three-reduced-second refractory interval before that same pair can
+form again; all other eligible collision partners remain available. This is a
+general anti-flicker rule, not a product-selection rule.
 
-A boundary is a rectangular planar container. Atoms already inside when it is
-created, and atoms later spawned inside, are assigned to it. Wall collisions
-constrain penetration and reflect normal velocity with documented restitution.
-Per-wall impulse drives the boundary glow and load view.
+## H-O-H angular preference
 
-Moving a wall while paused immediately restores assigned atoms to valid
-geometry. The resulting mechanical-energy difference is recorded as external
-boundary work. This is an editing convention, not a calibrated piston or a
-three-dimensional pressure measurement.
+For an oxygen with two active O-H bonds, a three-body term penalizes deviation
+of `cos(theta)` from the declared 104.5-degree preference. Analytical gradients
+apply equal-and-opposite forces to the two hydrogens and oxygen. The term is
+planar and pedagogical; it is not a stereochemical or vibrational prediction.
 
-## Current limitations
+## Grabbing and piston boundaries
 
-The v1 potential deliberately omits:
+The grab force is a damped spring from an atom to the latest pointer target.
+Pointer motion contributes once to the signed external grab-work ledger on the
+next fixed step. A dragged atom is still integrated, collides, remains confined,
+and may strain its bonds.
 
-- three-body angular energy and out-of-plane geometry;
-- charge equilibration, polarization, charge transfer, and redox;
-- orbitals, resonance, aromaticity, electronic excitation, spin, and quantum
-  effects;
-- a fitted reactive force-field parameter pack;
-- physical reaction-time acceleration.
+The container begins at reduced bounds `[-320,320] x [-220,220]`. The right
+wall moves toward its clamped target at no more than 150 reduced distance units
+per second. Commands never set its position directly. Atom-wall collision uses
+relative wall velocity, restitution, and penetration correction limited to the
+current fixed step. Impulse drives rolling wall load, impact glow/flex, events,
+and the wall-work ledger.
 
-Fixed template charges remain on atoms after connectivity changes. Strict 2D
-also makes tetrahedral methane and pyramidal ammonia physically impossible.
-Those species remain visual planar ingredients, not stereochemical claims.
+The displayed response is pressure intuition in a planar toy world, not a
+pascal measurement or three-dimensional pressure estimate.
 
-Consequently, plausible products, pathways, rates, equilibria, phases, or
-catalytic behavior are not validated results. The accurate claim is only:
+## Determinism and packed state
 
-> No product or reaction table selects outcomes; displayed connectivity follows
-> the versioned model state.
+The random stream, spatial sort, candidate priority, command order, fixed steps,
+bond ids, exact-overlap normals, and packed views are deterministic for the
+same model version, seed, and command sequence. Cross-version replay is not
+implied.
 
-## Validation and evolution
+Every Wasm mutation may grow linear memory or replace a packed vector. All
+previous pointers and JavaScript typed arrays are invalid after every command;
+the adapter must reacquire every view immediately.
 
-Validation is layered: native energy/force and integration tests, real-Wasm ABI
-and packed-state tests, browser interaction tests, named performance tests, and
-separate public acceptance. A visual result cannot substitute for a numerical
-gate.
+## Energy bookkeeping
 
-A future calibrated tier should implement one published, versioned reactive
-parameter pack without mixing domains, at a separately measured atom cap.
-Relevant foundations include [Tersoff bond order](https://doi.org/10.1103/PhysRevB.37.6991),
-[second-generation REBO](https://doi.org/10.1088/0953-8984/14/4/312),
-[ReaxFF](https://doi.org/10.1021/jp004368u),
-[QTPIE charge transfer](https://doi.org/10.1016/j.cplett.2007.02.065), and
-[BAOAB Langevin integration](https://doi.org/10.1063/1.4802990).
+Internal statistics separately expose:
+
+- kinetic, explicit bond/angle potential, excitation-inclusive total;
+- thermostat exchange;
+- bond-formation release;
+- bond-breaking absorption;
+- grab work;
+- wall work;
+- their signed ledger combination.
+
+The ledgers make interventions explicit; they do not establish global physical
+energy conservation for this dissipative, thermostatted, interactive teaching
+model.
+
+## Nonclaims and omissions
+
+The model omits electronic structure, charge, charge transfer, orbitals,
+resonance, spin, tunneling, quantum behavior, three-dimensional geometry,
+solvent, calibrated kinetics, entropy, real pressure, real temperature,
+catalysis, and a published reactive parameter set. It cannot validate a real
+pathway, product distribution, rate, equilibrium, phase, hazard, synthesis, or
+mechanism.

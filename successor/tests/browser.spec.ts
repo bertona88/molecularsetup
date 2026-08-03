@@ -1,0 +1,130 @@
+import { expect, test, type Page } from "@playwright/test";
+
+async function openReadyWorld(page: Page) {
+  await page.goto("/");
+  await expect(page.locator(".molecular-canvas")).toBeVisible();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/2 atoms/, {
+    timeout: 15_000,
+  });
+}
+
+test("populated first paint exposes four modes and direct manipulation", async ({ page }) => {
+  await openReadyWorld(page);
+  for (const mode of ["Make a bond", "Break a bond", "Ignite", "Free play"]) {
+    await expect(page.getByRole("button", { name: mode, exact: true })).toBeVisible();
+  }
+
+  const canvas = page.locator(".molecular-canvas");
+  const bounds = await canvas.boundingBox();
+  expect(bounds).not.toBeNull();
+  // The Make preset starts its two H atoms at world x = -9 and +9.
+  await page.mouse.move(bounds!.x + bounds!.width / 2 - 9, bounds!.y + bounds!.height / 2);
+  await page.mouse.down();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/1 grabbed/, {
+    timeout: 3_000,
+  });
+  await page.mouse.move(bounds!.x + bounds!.width / 2 - 150, bounds!.y + bounds!.height / 2, {
+    steps: 12,
+  });
+  await page.mouse.up();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("spark placement starts visible ignition while temperature endpoints remain semantic", async ({
+  page,
+}) => {
+  await openReadyWorld(page);
+  await page.getByRole("button", { name: "Ignite", exact: true }).click();
+  await page.getByRole("button", { name: "Place a spark" }).click();
+  await expect(page.getByRole("button", { name: "Cancel spark placement" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  const canvas = page.locator(".molecular-canvas");
+  const bounds = await canvas.boundingBox();
+  await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await expect(page.getByRole("button", { name: "Place a spark" })).toHaveAttribute(
+    "aria-pressed",
+    "false",
+  );
+  await expect(page.locator('[aria-live="polite"]')).toContainText(
+    /[1-9]\d* excited atoms|[1-9]\d* breaking/,
+    { timeout: 5_000 },
+  );
+
+  const temperature = page.getByRole("slider", { name: "Temperature from cold to hot" });
+  await temperature.fill("0");
+  await expect(temperature).toHaveAttribute("aria-valuetext", "Cold");
+  await temperature.fill("100");
+  await expect(temperature).toHaveAttribute("aria-valuetext", "Hot");
+});
+
+test("piston dragging, keyboard controls, and keyboard ingredient insertion stay operable", async ({
+  page,
+}) => {
+  await openReadyWorld(page);
+  const canvas = page.locator(".molecular-canvas");
+  const bounds = await canvas.boundingBox();
+  const centerX = bounds!.x + bounds!.width / 2;
+  const centerY = bounds!.y + bounds!.height / 2;
+  await page.mouse.move(centerX + 320, centerY);
+  await page.mouse.down();
+  await page.mouse.move(centerX + 210, centerY, { steps: 14 });
+  await page.mouse.up();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+
+  await canvas.focus();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: "Play simulation" })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(page.getByRole("button", { name: "Pause simulation" })).toBeVisible();
+  await page.keyboard.press("s");
+  await expect(page.getByRole("button", { name: "Cancel spark placement" })).toBeVisible();
+  await page.keyboard.press("Escape");
+
+  const addHydrogen = page.getByRole("button", {
+    name: "Add one Hydrogen atom. Hold to add a stream.",
+  });
+  await addHydrogen.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/3 atoms/, {
+    timeout: 4_000,
+  });
+});
+
+test("mobile controls remain on-screen and reduced motion retains causal state", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await openReadyWorld(page);
+  const tray = page.locator(".ingredient-tray");
+  const temperature = page.locator(".temperature-control");
+  const trayBounds = await tray.boundingBox();
+  const temperatureBounds = await temperature.boundingBox();
+  expect(trayBounds!.y + trayBounds!.height).toBeLessThanOrEqual(845);
+  expect(temperatureBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(temperatureBounds!.x + temperatureBounds!.width).toBeLessThanOrEqual(390);
+  expect(await page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+  await page.getByRole("button", { name: "Place a spark" }).click();
+  await expect(page.getByRole("button", { name: "Cancel spark placement" })).toBeVisible();
+});
+
+for (const failure of ["blocked", "corrupt"] as const) {
+  test(`${failure} Wasm leaves an explicit inert world`, async ({ page }) => {
+    await page.route("**/engine/molecularsetup_engine.wasm", async (route) => {
+      if (failure === "blocked") await route.abort("blockedbyclient");
+      else {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/wasm",
+          body: Buffer.from("not wasm"),
+        });
+      }
+    });
+    await page.goto("/");
+    await expect(page.getByRole("alert")).toContainText(/world is stopped/i, {
+      timeout: 10_000,
+    });
+    await expect(page.getByRole("button", { name: "Place a spark" })).toBeDisabled();
+  });
+}

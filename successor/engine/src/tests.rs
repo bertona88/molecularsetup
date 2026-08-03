@@ -1,317 +1,413 @@
-use super::*;
-use crate::model::{target_temperature, ELEMENTS, PAIR_CUTOFF, SPECIES};
+use crate::model::{
+    angle_preference_energy, ELEMENTS, ELEMENT_H, ELEMENT_O, EXPERIMENT_BREAK_BOND,
+    EXPERIMENT_FREE_PLAY, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND, H_O_H_ANGLE_RADIANS,
+};
 use crate::world::World;
-
-fn spawn_world(seed: u32, species: u32, count: u32) -> World {
-    let mut world = World::new(seed);
-    assert_eq!(world.enqueue_spawn(species, count, 0.0, 0.0), count);
-    assert_eq!(world.flush_spawns(count), count);
-    for atom in &mut world.atoms { atom.age = 1.0; }
-    world.compute_forces();
-    world.refresh();
-    world
-}
+use crate::{ABI_VERSION, FIXED_DT, MAX_ATOMS, MODEL_VERSION};
 
 fn assert_finite(world: &World) {
-    assert!(world.simulated_time.is_finite());
-    assert!(world.thermostat_heat.is_finite());
-    assert!(world.boundary_work.is_finite());
-    assert!(world.potential_energy.is_finite());
     for atom in &world.atoms {
-        for value in [atom.x, atom.y, atom.previous_x, atom.previous_y, atom.vx, atom.vy, atom.fx, atom.fy, atom.charge, atom.coordination, atom.age] {
-            assert!(value.is_finite(), "non-finite atom {} value {value}", atom.id);
+        for value in [
+            atom.x, atom.y, atom.vx, atom.vy, atom.fx, atom.fy, atom.excitation, atom.age,
+        ] {
+            assert!(value.is_finite(), "non-finite atom value: {value}");
         }
     }
-    for boundary in &world.boundaries {
-        for value in [boundary.x, boundary.y, boundary.width, boundary.height, boundary.impact,
-            boundary.loads[0], boundary.loads[1], boundary.loads[2], boundary.loads[3]] {
-            assert!(value.is_finite(), "non-finite boundary value {value}");
+    for bond in &world.bonds {
+        for value in [bond.progress, bond.strain, bond.energy, bond.rest_length, bond.age] {
+            assert!(value.is_finite(), "non-finite bond value: {value}");
         }
     }
+    for wall in &world.walls {
+        for value in [wall.position, wall.velocity, wall.load, wall.impact, wall.target] {
+            assert!(value.is_finite(), "non-finite wall value: {value}");
+        }
+    }
+    assert!(world.kinetic_energy().is_finite());
+    assert!(world.potential_energy.is_finite());
+}
+
+fn rms_speed(world: &World) -> f64 {
+    if world.atoms.is_empty() { return 0.0; }
+    (world.atoms.iter().map(|atom| atom.vx * atom.vx + atom.vy * atom.vy).sum::<f64>()
+        / world.atoms.len() as f64).sqrt()
+}
+
+fn oxygen_displacement(world: &World, initial: &[(u32, f64, f64)]) -> f64 {
+    let mut sum = 0.0;
+    let mut count = 0;
+    for atom in world.atoms.iter().filter(|atom| atom.element == ELEMENT_O) {
+        let (_, x, y) = initial.iter().find(|entry| entry.0 == atom.id).unwrap();
+        sum += (atom.x - x).powi(2) + (atom.y - y).powi(2);
+        count += 1;
+    }
+    if count == 0 { 0.0 } else { (sum / count as f64).sqrt() }
+}
+
+fn deterministic_snapshot(world: &World) -> Vec<u64> {
+    let mut values = vec![
+        world.simulated_time.to_bits(),
+        world.temperature_u.to_bits(),
+        world.completed_steps,
+        world.spark_count,
+        world.collision_count,
+    ];
+    for atom in &world.atoms {
+        values.extend_from_slice(&[
+            atom.id as u64,
+            atom.element as u64,
+            atom.x.to_bits(),
+            atom.y.to_bits(),
+            atom.vx.to_bits(),
+            atom.vy.to_bits(),
+            atom.excitation.to_bits(),
+            atom.flags as u64,
+        ]);
+    }
+    for bond in &world.bonds {
+        values.extend_from_slice(&[
+            bond.id as u64,
+            bond.a as u64,
+            bond.b as u64,
+            bond.order as u64,
+            bond.state as u64,
+            bond.progress.to_bits(),
+            bond.strain.to_bits(),
+            bond.energy.to_bits(),
+        ]);
+    }
+    for wall in &world.walls {
+        values.extend_from_slice(&[
+            wall.id as u64,
+            wall.position.to_bits(),
+            wall.velocity.to_bits(),
+            wall.load.to_bits(),
+            wall.target.to_bits(),
+        ]);
+    }
+    values
 }
 
 #[test]
-fn versions_defaults_and_packed_strides_are_frozen() {
-    assert_eq!(ms_model_version(), 1);
-    assert_eq!(ms_abi_version(), 1);
-    assert_eq!(ms_atoms_stride(), 16);
-    assert_eq!(ms_bonds_stride(), 6);
-    assert_eq!(ms_boundaries_stride(), 11);
-    assert_eq!(ms_events_stride(), 8);
-    assert_eq!(ms_stats_stride(), 21);
-
-    let world = World::new(41);
-    assert_eq!(world.atoms_len(), 0);
-    assert!(world.atoms_ptr().is_null());
-    assert_eq!(world.stats_len(), 21);
-    let stats = unsafe { std::slice::from_raw_parts(world.stats_ptr(), world.stats_len()) };
-    assert_eq!(stats[1], FIXED_DT);
-    assert_eq!(stats[2], 0.36);
-    assert_eq!(stats[14], 41.0);
-    assert_eq!(stats[17], MAX_ATOMS as f64);
-    assert_eq!(stats[19], 1.0);
-    assert_eq!(stats[20], 1.0);
+fn abi_v2_opens_in_a_populated_default_container() {
+    let world = World::new(0x1234);
+    assert_eq!(ABI_VERSION, 2);
+    assert_eq!(MODEL_VERSION, 2);
+    assert_eq!(world.experiment, EXPERIMENT_MAKE_BOND);
+    assert_eq!(world.atoms.len(), 2);
+    assert_eq!(world.walls.len(), 4);
+    assert_eq!(MAX_ATOMS, 18_000);
+    assert_eq!(FIXED_DT, 1.0 / 120.0);
+    assert_finite(&world);
 }
 
 #[test]
-fn analytical_force_matches_full_energy_gradient() {
-    // Two coincident H2 templates exercise pair terms and over-coordination together.
-    let mut world = World::new(7);
-    assert_eq!(world.enqueue_spawn(1, 1, 0.0, 0.0), 1);
-    assert_eq!(world.enqueue_spawn(1, 1, 2.0, 1.0), 1);
-    assert_eq!(world.flush_spawns(2), 2);
-    for atom in &mut world.atoms { atom.age = 1.0; atom.vx = 0.0; atom.vy = 0.0; }
-    world.compute_forces();
-    let x = world.atoms[0].x;
-    let analytical = -world.atoms[0].fx; // dU/dx = -Fx
-    let h = 1.0e-5;
-    world.atoms[0].x = x + h;
-    let plus = world.compute_forces();
-    world.atoms[0].x = x - h;
-    let minus = world.compute_forces();
-    world.atoms[0].x = x;
-    world.compute_forces();
-    let numerical = (plus - minus) / (2.0 * h);
-    let scale = analytical.abs().max(numerical.abs()).max(1.0);
-    assert!((analytical - numerical).abs() / scale < 2.0e-7,
-        "analytical={analytical} numerical={numerical}");
-}
-
-#[test]
-fn every_pair_force_obeys_newtons_third_law() {
-    let mut world = spawn_world(99, 3, 3);
-    world.compute_forces();
-    let sum_fx: f64 = world.atoms.iter().map(|atom| atom.fx).sum();
-    let sum_fy: f64 = world.atoms.iter().map(|atom| atom.fy).sum();
-    let force_scale: f64 = world.atoms.iter().map(|atom| atom.fx.abs() + atom.fy.abs()).sum();
-    assert!(sum_fx.abs() <= 1.0e-12 * force_scale.max(1.0));
-    assert!(sum_fy.abs() <= 1.0e-12 * force_scale.max(1.0));
-}
-
-#[test]
-fn energy_and_force_are_continuous_at_pair_cutoff() {
-    let mut world = World::new(12);
-    world.enqueue_spawn(6, 1, 0.0, 0.0);
-    world.enqueue_spawn(6, 1, PAIR_CUTOFF + 1.0, 0.0);
-    world.flush_spawns(2);
-    for atom in &mut world.atoms { atom.age = 1.0; atom.vx = 0.0; atom.vy = 0.0; }
-    world.atoms[0].x = 0.0;
+fn atom_collision_exchanges_momentum_without_creating_or_destroying_it() {
+    let mut world = World::new(9);
+    world.atoms[0].x = -6.0;
+    world.atoms[1].x = 6.0;
     world.atoms[0].y = 0.0;
     world.atoms[1].y = 0.0;
-    world.atoms[1].x = PAIR_CUTOFF + 1.0e-4;
-    let outside = world.compute_forces();
-    assert_eq!(world.atoms[0].fx, 0.0);
-    world.atoms[1].x = PAIR_CUTOFF - 1.0e-4;
-    let inside = world.compute_forces();
-    assert!((inside - outside).abs() < 1.0e-10, "cutoff energy jump={}", inside - outside);
-    assert!(world.atoms[0].fx.abs() < 1.0e-8, "cutoff force={}", world.atoms[0].fx);
+    world.atoms[0].vx = 26.0;
+    world.atoms[1].vx = -11.0;
+    world.atoms[0].vy = 3.0;
+    world.atoms[1].vy = 3.0;
+    let before = world.total_momentum();
+    world.resolve_atom_collisions_and_form_bonds();
+    let after = world.total_momentum();
+    assert!((after.0 - before.0).abs() < 1.0e-10);
+    assert!((after.1 - before.1).abs() < 1.0e-10);
+    assert!(world.atoms[0].vx < world.atoms[1].vx, "normal momentum was not exchanged");
 }
 
 #[test]
-fn replay_is_bitwise_deterministic() {
-    fn run() -> World {
-        let mut world = World::new(0x51a7_c0de);
-        world.set_temperature(0.73);
-        world.set_gamma(2.25);
-        world.enqueue_spawn(0, 24, -30.0, 15.0);
-        world.flush_spawns(7);
-        world.flush_spawns(100);
-        world.step_fixed(240);
-        world
+fn exact_overlap_separates_along_a_deterministic_id_direction() {
+    fn separated(seed: u32) -> (f64, f64, f64, f64) {
+        let mut world = World::new(seed);
+        for atom in &mut world.atoms { atom.x = 0.0; atom.y = 0.0; atom.vx = 0.0; atom.vy = 0.0; }
+        world.resolve_atom_collisions_and_form_bonds();
+        let distance = (world.atoms[1].x - world.atoms[0].x)
+            .hypot(world.atoms[1].y - world.atoms[0].y);
+        assert!(distance >= 14.0 - 1.0e-10);
+        (world.atoms[0].x, world.atoms[0].y, world.atoms[1].x, world.atoms[1].y)
     }
-    let a = run();
-    let b = run();
-    assert_eq!(a.completed_steps, b.completed_steps);
-    assert_eq!(a.atoms.len(), b.atoms.len());
-    for (left, right) in a.atoms.iter().zip(&b.atoms) {
-        for (x, y) in [(left.x, right.x), (left.y, right.y), (left.vx, right.vx),
-            (left.vy, right.vy), (left.fx, right.fx), (left.fy, right.fy)] {
-            assert_eq!(x.to_bits(), y.to_bits());
-        }
-    }
-    assert_eq!(a.thermostat_heat.to_bits(), b.thermostat_heat.to_bits());
-    assert_eq!(a.potential_energy.to_bits(), b.potential_energy.to_bits());
+    assert_eq!(separated(1), separated(999), "overlap direction must derive from ids, not RNG state");
 }
 
 #[test]
-fn complete_molecule_capacity_atom_and_charge_accounting() {
-    let expected_atoms = [3_usize, 2, 2, 5, 4, 3, 1, 1];
-    let expected_charge = [0.0_f64, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0];
-    let mut world = World::new(4);
-    for species in 0..8_u32 {
-        assert_eq!(SPECIES[species as usize].atoms.len(), expected_atoms[species as usize]);
-        assert_eq!(world.enqueue_spawn(species, 1, species as f64 * 200.0, 0.0), 1);
+fn explicit_bonds_never_exceed_h_or_o_valence() {
+    let mut world = World::new(0x51a1);
+    world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    assert_eq!(world.spawn_ingredient(0, 24, 0.0, 0.0), 24);
+    assert_eq!(world.spawn_ingredient(1, 12, 0.0, 0.0), 12);
+    assert_eq!(world.apply_spark(0.0, 0.0, 400.0, 280.0), 1);
+    world.step_fixed(720);
+    let mut usage = vec![0_u8; world.atoms.len()];
+    for bond in &world.bonds {
+        usage[bond.a] += bond.order;
+        usage[bond.b] += bond.order;
     }
-    assert_eq!(world.pending_molecules(), 8);
-    assert_eq!(world.flush_spawns(8), 8);
-    assert_eq!(world.atoms.len(), expected_atoms.iter().sum());
-    assert_eq!(world.atoms.first().unwrap().id, 1);
-    assert_eq!(world.atoms.last().unwrap().id as usize, world.atoms.len());
-    let mut offset = 0;
-    for species in 0..8 {
-        let end = offset + expected_atoms[species];
-        let charge: f64 = world.atoms[offset..end].iter().map(|atom| atom.charge).sum();
-        assert!((charge - expected_charge[species]).abs() < 1.0e-12);
-        offset = end;
+    for (index, used) in usage.into_iter().enumerate() {
+        assert!(used <= ELEMENTS[world.atoms[index].element as usize].valence);
     }
-
-    let mut capacity = World::new(5);
-    let accepted = capacity.enqueue_spawn(3, u32::MAX, 0.0, 0.0);
-    assert_eq!(accepted as usize, MAX_ATOMS / 5);
-    assert_eq!(capacity.pending_molecules(), accepted as u64);
-    assert_eq!(capacity.enqueue_spawn(0, 1, 0.0, 0.0), 0);
-    assert_eq!(capacity.atoms.len(), 0, "enqueue must not materialize partial state");
+    assert_finite(&world);
 }
 
 #[test]
-fn derived_bond_graph_never_drives_forces() {
-    let mut world = spawn_world(123, 4, 2);
-    world.compute_forces();
-    world.refresh();
-    assert!(!world.derived_bonds.is_empty());
-    let forces: Vec<(u64, u64)> = world.atoms.iter()
-        .map(|atom| (atom.fx.to_bits(), atom.fy.to_bits())).collect();
-    world.derived_bonds.clear();
-    world.compute_forces();
-    let rebuilt_forces: Vec<(u64, u64)> = world.atoms.iter()
-        .map(|atom| (atom.fx.to_bits(), atom.fy.to_bits())).collect();
-    assert_eq!(forces, rebuilt_forces);
-    world.refresh();
-    assert!(!world.derived_bonds.is_empty());
+fn make_bond_preset_forms_stable_h2_inside_two_seconds() {
+    let mut world = World::new(0x4d41_4b45);
+    world.load_experiment(EXPERIMENT_MAKE_BOND as u32);
+    world.step_fixed(240);
+    assert_eq!(world.atoms.len(), 2);
+    assert_eq!(
+        world.bonds.len(),
+        1,
+        "positions={:?}, velocities={:?}, collisions={}",
+        world.atoms.iter().map(|atom| (atom.x, atom.y)).collect::<Vec<_>>(),
+        world.atoms.iter().map(|atom| (atom.vx, atom.vy)).collect::<Vec<_>>(),
+        world.collision_count,
+    );
+    assert_eq!(world.bonds[0].order, 1);
+    assert_eq!(world.bonds[0].state, crate::model::BOND_STABLE);
+    assert!(world.ledger.formation_release > 0.0);
 }
 
 #[test]
-fn exact_ou_thermostat_samples_requested_temperature() {
-    let mut world = spawn_world(0x7777, 6, 1);
-    world.temperature_u = 0.58;
-    world.thermostat_gamma = 7.0;
-    world.atoms[0].vx = 0.0;
-    world.atoms[0].vy = 0.0;
-    world.compute_forces();
-    world.step_fixed(2_000);
-    let mut sum = 0.0;
-    let samples = 24_000;
-    for _ in 0..samples {
-        world.step_fixed(1);
-        sum += world.kinetic_energy(); // In 2D, E[K] per atom equals T.
-    }
-    let observed = sum / samples as f64;
-    let target = target_temperature(world.temperature_u);
-    assert!((observed / target - 1.0).abs() < 0.10,
-        "OU temperature observed={observed} target={target}");
-    assert!(world.thermostat_heat.is_finite());
+fn hot_or_grabbed_h2_strains_and_breaks_inside_three_seconds() {
+    let mut hot = World::new(5);
+    hot.load_experiment(EXPERIMENT_BREAK_BOND as u32);
+    hot.set_temperature(1.0);
+    hot.step_fixed(360);
+    assert!(hot.bonds.is_empty(), "sustained high heat did not break H2");
+    assert!(hot.ledger.breaking_absorption > 0.0);
+
+    let mut dragged = World::new(5);
+    dragged.load_experiment(EXPERIMENT_BREAK_BOND as u32);
+    let atom_id = dragged.atoms[0].id;
+    assert_eq!(dragged.grab_atom(atom_id, dragged.atoms[0].x, dragged.atoms[0].y), 1);
+    assert_eq!(dragged.drag_atom(atom_id, -150.0, 0.0), 1);
+    dragged.step_fixed(360);
+    assert!(
+        dragged.bonds.is_empty(),
+        "spring grab did not strain and break H2: bond={:?}, atoms={:?}, absorbed={}",
+        dragged.bonds.first().map(|bond| (bond.state, bond.progress, bond.strain)),
+        dragged.atoms.iter().map(|atom| (atom.x, atom.y, atom.vx, atom.vy)).collect::<Vec<_>>(),
+        dragged.ledger.breaking_absorption,
+    );
+    assert!(dragged.ledger.grab_work > 0.0);
 }
 
 #[test]
-fn velocity_verlet_has_bounded_nve_drift_and_is_time_reversible() {
-    let mut world = spawn_world(333, 1, 1);
-    world.thermostat_gamma = 0.0;
-    for atom in &mut world.atoms { atom.vx = 0.0; atom.vy = 0.0; atom.age = 1.0; }
-    world.compute_forces();
-    let initial_state: Vec<(f64, f64, f64, f64)> = world.atoms.iter()
-        .map(|a| (a.x, a.y, a.vx, a.vy)).collect();
-    let initial_energy = world.mechanical_energy();
-    world.step_fixed(4_000);
-    let final_energy = world.mechanical_energy();
-    let relative_drift = (final_energy - initial_energy).abs() / initial_energy.abs().max(1.0);
-    assert!(relative_drift < 2.0e-5, "NVE relative drift={relative_drift}");
+fn non_step_commands_do_not_advance_bond_lifecycle_or_grab_work() {
+    let mut world = World::new(0x4d41_4b45);
+    world.load_experiment(EXPERIMENT_MAKE_BOND as u32);
+    world.step_fixed(10);
+    assert_eq!(world.bonds.len(), 1, "reference pair did not begin forming");
 
-    for atom in &mut world.atoms { atom.vx = -atom.vx; atom.vy = -atom.vy; }
-    world.step_fixed(4_000);
-    for (atom, initial) in world.atoms.iter().zip(initial_state) {
-        assert!((atom.x - initial.0).abs() < 2.0e-8);
-        assert!((atom.y - initial.1).abs() < 2.0e-8);
-        assert!((atom.vx + initial.2).abs() < 2.0e-8);
-        assert!((atom.vy + initial.3).abs() < 2.0e-8);
-    }
-}
-
-#[test]
-fn paused_piston_edits_constrain_atoms_and_book_work() {
-    let mut world = spawn_world(18, 0, 4);
-    let id = world.create_boundary(-180.0, -180.0, 360.0, 360.0);
-    assert_ne!(id, 0);
     world.set_playing(false);
     let time = world.simulated_time;
-    assert_eq!(world.move_boundary_edge(id, 0, -20.0), 1);
-    assert_eq!(world.advance(1000.0), 0);
-    assert_eq!(world.simulated_time, time);
-    let boundary = world.boundaries.iter().find(|boundary| boundary.id == id).unwrap();
-    for atom in world.atoms.iter().filter(|atom| atom.boundary_id == id) {
-        let radius = ELEMENTS[atom.element as usize].radius;
-        assert!(atom.x >= boundary.x + radius - 1.0e-12);
-        assert!(atom.x <= boundary.x + boundary.width - radius + 1.0e-12);
-        assert!(atom.y >= boundary.y + radius - 1.0e-12);
-        assert!(atom.y <= boundary.y + boundary.height - radius + 1.0e-12);
+    let steps = world.completed_steps;
+    let state = world.bonds[0].state;
+    let progress = world.bonds[0].progress;
+    let age = world.bonds[0].age;
+    let released = world.ledger.formation_release;
+    for _ in 0..40 {
+        assert_eq!(world.spawn_ingredient(0, 1, 200.0, 160.0), 1);
     }
-    assert!(world.boundary_work.is_finite());
-    assert_finite(&world);
-}
+    assert_eq!(world.simulated_time, time);
+    assert_eq!(world.completed_steps, steps);
+    assert_eq!(world.bonds[0].state, state);
+    assert_eq!(world.bonds[0].progress, progress);
+    assert_eq!(world.bonds[0].age, age);
+    assert_eq!(world.ledger.formation_release, released);
 
-#[test]
-fn wall_impacts_populate_load_and_event_views() {
-    let mut world = spawn_world(26, 6, 1);
-    let id = world.create_boundary(-40.0, -40.0, 80.0, 80.0);
-    world.thermostat_gamma = 0.0;
-    world.atoms[0].x = -26.9;
-    world.atoms[0].vx = -80.0;
-    world.compute_forces();
+    world.load_experiment(EXPERIMENT_BREAK_BOND as u32);
+    let atom_id = world.atoms[0].id;
+    assert_eq!(world.grab_atom(atom_id, world.atoms[0].x, world.atoms[0].y), 1);
+    assert_eq!(world.drag_atom(atom_id, -150.0, 0.0), 1);
+    assert_eq!(world.spawn_ingredient(0, 1, 200.0, 160.0), 1);
+    assert_eq!(world.ledger.grab_work, 0.0, "a state refresh consumed pending pointer work");
     world.step_fixed(1);
-    let boundary = world.boundaries.iter().find(|boundary| boundary.id == id).unwrap();
-    assert!(boundary.impact > 0.0);
-    assert!(boundary.loads[0] > 0.0);
-    assert!(world.events_len() >= 8);
+    let accounted = world.ledger.grab_work;
+    assert!(accounted > 0.0);
+    world.step_fixed(1);
+    assert_eq!(world.ledger.grab_work, accounted, "one pointer move was counted twice");
 }
 
 #[test]
-fn hot_compressed_world_stays_finite() {
-    let mut world = World::new(0xbeef);
-    let id = world.create_boundary(-500.0, -500.0, 1_000.0, 1_000.0);
+fn angular_energy_prefers_the_declared_h_o_h_angle() {
+    let preferred = angle_preference_energy(H_O_H_ANGLE_RADIANS);
+    let linear = angle_preference_energy(core::f64::consts::PI);
+    let acute = angle_preference_energy(60.0_f64.to_radians());
+    assert!(preferred < 1.0e-20);
+    assert!(preferred < linear);
+    assert!(preferred < acute);
+}
+
+#[test]
+fn ignition_is_activation_gated_for_ten_seconds() {
+    let mut world = World::new(0x1a17_e);
+    world.load_experiment(EXPERIMENT_IGNITE as u32);
+    assert_eq!(world.element_count(ELEMENT_H), 16);
+    assert_eq!(world.element_count(ELEMENT_O), 8);
+    assert_eq!(world.bonds.len(), 12);
+    world.step_fixed(1_200);
+    assert_eq!(world.spark_count, 0);
+    assert_eq!(world.water_like_oxygen_count(), 0);
+    assert_eq!(world.bonds.len(), 12, "stable reactants rearranged without activation");
+}
+
+#[test]
+fn spark_starts_rearrangement_and_yields_water_like_topology() {
+    let mut world = World::new(0x1a17_e);
+    world.load_experiment(EXPERIMENT_IGNITE as u32);
+    assert_eq!(world.apply_spark(0.0, 0.0, 330.0, 420.0), 1);
+    world.step_fixed(120);
+    assert!(world.ledger.breaking_absorption > 0.0, "spark caused no rearrangement in one second");
+    world.step_fixed(840);
+    let water_like = world.water_like_oxygen_count();
+    let oxygen_hydrogens: Vec<_> = (0..world.atoms.len())
+        .filter(|&index| world.atoms[index].element == ELEMENT_O)
+        .map(|oxygen| {
+            let count = world.bonds.iter().filter(|bond| {
+                let other = if bond.a == oxygen { Some(bond.b) }
+                    else if bond.b == oxygen { Some(bond.a) } else { None };
+                other.and_then(|index| world.atoms.get(index)).map(|atom| atom.element) == Some(ELEMENT_H)
+            }).count();
+            (oxygen, count, world.atoms[oxygen].x, world.atoms[oxygen].y)
+        })
+        .collect();
+    assert!(
+        water_like >= 6,
+        "only {water_like}/8 oxygen atoms reached H-O-H topology: {oxygen_hydrogens:?}; bonds={}",
+        world.bonds.len(),
+    );
+    assert!(world.ledger.formation_release > 0.0);
+    assert_finite(&world);
+}
+
+#[test]
+fn event_energy_ledger_records_formation_and_breaking_separately() {
+    let mut world = World::new(77);
+    world.load_experiment(EXPERIMENT_MAKE_BOND as u32);
+    world.step_fixed(240);
+    let released = world.ledger.formation_release;
+    assert!(released > 0.0);
     world.set_temperature(1.0);
-    world.set_gamma(9.0);
-    assert_eq!(world.enqueue_spawn(0, 100, 0.0, 0.0), 100);
-    world.flush_spawns(100);
-    assert_eq!(world.move_boundary_edge(id, 0, -120.0), 1);
-    assert_eq!(world.move_boundary_edge(id, 1, 120.0), 1);
-    assert_eq!(world.move_boundary_edge(id, 2, -120.0), 1);
-    assert_eq!(world.move_boundary_edge(id, 3, 120.0), 1);
-    world.step_fixed(1_000);
-    assert_eq!(world.atoms.len(), 300);
+    world.step_fixed(360);
+    assert!(world.ledger.breaking_absorption > 0.0);
+    assert_eq!(world.ledger.formation_release, released);
+}
+
+#[test]
+fn fixed_step_replay_is_bit_deterministic() {
+    fn run() -> Vec<u64> {
+        let mut world = World::new(0x0bad_c0de);
+        world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+        world.set_temperature(0.57);
+        assert_eq!(world.spawn_ingredient(0, 3, -40.0, 20.0), 3);
+        assert_eq!(world.spawn_ingredient(1, 2, 45.0, -20.0), 2);
+        assert_eq!(world.apply_spark(0.0, 0.0, 180.0, 190.0), 1);
+        assert_eq!(world.set_piston_target(210.0), 1);
+        world.step_fixed(240);
+        deterministic_snapshot(&world)
+    }
+    assert_eq!(run(), run());
+}
+
+#[test]
+fn piston_moves_at_finite_speed_and_never_teleports_on_command() {
+    let mut world = World::new(18);
+    world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    let initial = world.walls.iter().find(|wall| wall.edge == 1).unwrap().position;
+    assert_eq!(world.set_piston_target(40.0), 1);
+    assert_eq!(world.walls.iter().find(|wall| wall.edge == 1).unwrap().position, initial);
+    world.step_fixed(60);
+    let piston = world.walls.iter().find(|wall| wall.edge == 1).unwrap();
+    assert!(piston.position < initial);
+    assert!(piston.position > 40.0);
+    assert!(piston.velocity.abs() > 0.0);
+}
+
+#[test]
+fn piston_confinement_and_rolling_load_rise_under_compression() {
+    let mut world = World::new(26);
+    world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    assert_eq!(world.spawn_ingredient(2, 28, 220.0, 0.0), 28);
+    assert_eq!(world.set_piston_target(-80.0), 1);
+    world.step_fixed(420);
+    let (left, right, top, bottom) = world.container_bounds();
+    for atom in &world.atoms {
+        let radius = atom.param().radius;
+        assert!(atom.x >= left + radius - 1.0e-8);
+        assert!(atom.x <= right - radius + 1.0e-8);
+        assert!(atom.y >= top + radius - 1.0e-8);
+        assert!(atom.y <= bottom - radius + 1.0e-8);
+    }
+    let piston = world.walls.iter().find(|wall| wall.edge == 1).unwrap();
+    assert!(piston.load > 0.0 || piston.impact > 0.0, "compression produced no wall response");
+    assert!(world.ledger.wall_work > 0.0);
     assert_finite(&world);
 }
 
 #[test]
-fn uniform_grid_executes_five_thousand_particle_path() {
-    let mut world = World::new(0x5000);
-    assert_eq!(world.enqueue_spawn(6, 5_000, 0.0, 0.0), 5_000);
-    assert_eq!(world.flush_spawns(5_000), 5_000);
-    assert_eq!(world.atoms.len(), 5_000);
-    world.set_gamma(0.0);
-    assert_eq!(world.step_fixed(1), 1);
-    assert_finite(&world);
+fn temperature_endpoints_differ_by_at_least_fivefold_in_motion() {
+    let mut cold = World::new(0x7e4d);
+    cold.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    cold.set_temperature(0.0);
+    cold.step_fixed(120);
+
+    let mut hot = World::new(0x7e4d);
+    hot.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    hot.set_temperature(1.0);
+    hot.step_fixed(120);
+
+    let cold_motion = rms_speed(&cold);
+    let hot_motion = rms_speed(&hot);
+    assert!(hot_motion >= 5.0 * cold_motion, "cold={cold_motion}, hot={hot_motion}");
 }
 
 #[test]
-fn command_guards_reject_non_finite_or_unrepresentable_input() {
+fn oxygen_moves_visibly_at_warm_and_hot_settings_within_one_second() {
+    let mut warm = World::new(0x0f0f);
+    warm.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    let initial: Vec<_> = warm.atoms.iter().filter(|atom| atom.element == ELEMENT_O)
+        .map(|atom| (atom.id, atom.x, atom.y)).collect();
+    warm.set_temperature(0.55);
+    warm.step_fixed(120);
+    let warm_distance = oxygen_displacement(&warm, &initial);
+
+    let mut hot = World::new(0x0f0f);
+    hot.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    hot.set_temperature(1.0);
+    hot.step_fixed(120);
+    let hot_distance = oxygen_displacement(&hot, &initial);
+    assert!(warm_distance >= 3.0, "warm oxygen displacement={warm_distance}");
+    assert!(hot_distance > warm_distance, "warm={warm_distance}, hot={hot_distance}");
+}
+
+#[test]
+fn piston_command_produces_visible_response_inside_half_a_second() {
+    let mut world = World::new(0x5051);
+    world.load_experiment(EXPERIMENT_FREE_PLAY as u32);
+    let initial = world.walls.iter().find(|wall| wall.edge == 1).unwrap().position;
+    world.set_piston_target(120.0);
+    world.step_fixed(60);
+    let piston = world.walls.iter().find(|wall| wall.edge == 1).unwrap();
+    assert!(initial - piston.position >= 70.0);
+    assert!(piston.velocity < 0.0);
+}
+
+#[test]
+fn command_guards_and_advance_cap_preserve_finite_state() {
     let mut world = World::new(1);
-    assert_eq!(world.enqueue_spawn(0, 10, f64::NAN, 0.0), 0);
-    assert_eq!(world.enqueue_spawn(0, 10, 1.0e100, 0.0), 0);
-    assert_eq!(world.create_boundary(0.0, 0.0, f64::INFINITY, 10.0), 0);
-    world.set_temperature(f64::NAN);
-    world.set_gamma(f64::NEG_INFINITY);
-    assert_eq!(world.temperature_u, 0.36);
-    assert_eq!(world.thermostat_gamma, 1.5);
-    assert_eq!(world.advance(f64::INFINITY), 0);
-    assert_finite(&world);
-}
-
-#[test]
-fn advance_caps_work_at_five_ticks_and_pause_drops_wall_time() {
-    let mut world = World::new(6);
+    assert_eq!(world.load_experiment(99), 0);
+    assert_eq!(world.spawn_ingredient(99, 2, 0.0, 0.0), 0);
+    assert_eq!(world.spawn_ingredient(0, 2, f64::NAN, 0.0), 0);
+    assert_eq!(world.apply_spark(0.0, 0.0, f64::INFINITY, 20.0), 0);
+    assert_eq!(world.set_piston_target(f64::NEG_INFINITY), 0);
     assert_eq!(world.advance(10_000.0), 5);
-    assert_eq!(world.completed_steps, 5);
     world.set_playing(false);
-    assert_eq!(world.advance(10_000.0), 0);
-    world.set_playing(true);
-    assert_eq!(world.advance(FIXED_DT * 1_000.0), 1);
+    assert_eq!(world.advance(1_000.0), 0);
+    assert_finite(&world);
 }

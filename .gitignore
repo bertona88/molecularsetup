@@ -2,3 +2,5 @@
 .tooling/
 node_modules/
 prototype/node_modules/
+successor/playwright-report/
+successor/test-results/

@@ -9,6 +9,7 @@
     "successor:dev": "npm --prefix successor run dev",
     "successor:build": "npm --prefix successor run build",
     "successor:test": "npm --prefix successor test",
+    "successor:test:browser": "npm --prefix successor run test:browser",
     "successor:lint": "npm --prefix successor run lint",
     "prototype:test": "npm --prefix prototype test",
     "prototype:check": "npm --prefix prototype run check",

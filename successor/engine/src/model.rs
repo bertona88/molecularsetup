@@ -1,84 +1,175 @@
-//! Fixed model parameters and small dependency-free numerical utilities.
+//! Versioned parameters for the reduced, two-dimensional teaching world.
+//!
+//! These values are deliberately compressed and pedagogical. In particular,
+//! oxygen uses four hydrogen masses instead of the physical ratio of roughly
+//! sixteen. The smaller ratio keeps oxygen motion legible while retaining the
+//! qualitative fact that hydrogen responds more readily.
 
-pub const MODEL_VERSION: u32 = 1;
-pub const ABI_VERSION: u32 = 1;
+pub const MODEL_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 2;
 pub const FIXED_DT: f64 = 1.0 / 120.0;
 pub const MAX_ATOMS: usize = 18_000;
-pub const PAIR_CUTOFF: f64 = 47.0;
-pub const SWITCH_START: f64 = 37.0;
-pub const MAX_SPEED: f64 = 280.0;
-pub const INSERTION_RAMP: f64 = 0.24;
+pub const MAX_SPEED: f64 = 260.0;
+pub const NEIGHBOR_CELL: f64 = 36.0;
+pub const WORLD_LIMIT: f64 = 1.0e6;
+
+pub const ELEMENT_H: u8 = 0;
+pub const ELEMENT_O: u8 = 1;
+
+pub const BOND_FORMING: u8 = 0;
+pub const BOND_STABLE: u8 = 1;
+pub const BOND_STRESSED: u8 = 2;
+pub const BOND_BREAKING: u8 = 3;
+
+pub const EXPERIMENT_MAKE_BOND: u8 = 0;
+pub const EXPERIMENT_BREAK_BOND: u8 = 1;
+pub const EXPERIMENT_IGNITE: u8 = 2;
+pub const EXPERIMENT_FREE_PLAY: u8 = 3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct ElementParam {
     pub mass: f64,
     pub radius: f64,
-    pub covalent_radius: f64,
-    pub valence: f64,
-    pub well: f64,
+    pub valence: u8,
 }
 
-pub const ELEMENTS: [ElementParam; 6] = [
-    ElementParam { mass: 1.0, radius: 7.0, covalent_radius: 8.0, valence: 1.0, well: 1.20 }, // H
-    ElementParam { mass: 12.0, radius: 11.0, covalent_radius: 11.0, valence: 4.0, well: 1.55 }, // C
-    ElementParam { mass: 14.0, radius: 10.5, covalent_radius: 10.0, valence: 3.0, well: 1.45 }, // N
-    ElementParam { mass: 16.0, radius: 10.0, covalent_radius: 9.0, valence: 2.0, well: 1.60 }, // O
-    ElementParam { mass: 23.0, radius: 13.0, covalent_radius: 12.0, valence: 1.0, well: 0.38 }, // Na
-    ElementParam { mass: 35.5, radius: 14.0, covalent_radius: 12.0, valence: 1.0, well: 0.55 }, // Cl
+pub const ELEMENTS: [ElementParam; 2] = [
+    ElementParam { mass: 1.0, radius: 7.0, valence: 1 }, // H
+    ElementParam { mass: 4.0, radius: 10.0, valence: 2 }, // O (compressed from the physical mass ratio)
 ];
+
+#[derive(Clone, Copy, Debug)]
+pub struct PairParam {
+    pub order: u8,
+    pub rest_length: f64,
+    pub capture_distance: f64,
+    pub stiffness: f64,
+    pub damping: f64,
+    pub activation_barrier: f64,
+    pub formation_time: f64,
+    pub dissociation_energy: f64,
+    pub strain_on: f64,
+    pub strain_break: f64,
+    pub excitation_break: f64,
+}
+
+pub const H_H: PairParam = PairParam {
+    order: 1,
+    rest_length: 16.0,
+    capture_distance: 20.0,
+    stiffness: 72.0,
+    damping: 4.8,
+    activation_barrier: 34.0,
+    formation_time: 0.30,
+    dissociation_energy: 92.0,
+    strain_on: 0.25,
+    strain_break: 0.48,
+    excitation_break: 96.0,
+};
+
+pub const O_O: PairParam = PairParam {
+    order: 2,
+    rest_length: 20.0,
+    capture_distance: 25.0,
+    stiffness: 112.0,
+    damping: 7.2,
+    activation_barrier: 92.0,
+    formation_time: 0.46,
+    dissociation_energy: 136.0,
+    strain_on: 0.20,
+    strain_break: 0.38,
+    excitation_break: 126.0,
+};
+
+pub const O_H: PairParam = PairParam {
+    order: 1,
+    rest_length: 17.0,
+    capture_distance: 31.0,
+    stiffness: 96.0,
+    damping: 5.8,
+    activation_barrier: 36.0,
+    formation_time: 0.34,
+    dissociation_energy: 118.0,
+    strain_on: 0.24,
+    strain_break: 0.44,
+    excitation_break: 154.0,
+};
+
+#[inline]
+pub fn pair_param(a: u8, b: u8) -> Option<PairParam> {
+    match (a, b) {
+        (ELEMENT_H, ELEMENT_H) => Some(H_H),
+        (ELEMENT_O, ELEMENT_O) => Some(O_O),
+        (ELEMENT_H, ELEMENT_O) | (ELEMENT_O, ELEMENT_H) => Some(O_H),
+        _ => None,
+    }
+}
+
+pub const H_O_H_ANGLE_RADIANS: f64 = 104.5 * core::f64::consts::PI / 180.0;
+pub const H_O_H_ANGLE_STIFFNESS: f64 = 210.0;
+
+#[inline]
+pub fn angle_preference_energy(angle_radians: f64) -> f64 {
+    let delta = angle_radians.cos() - H_O_H_ANGLE_RADIANS.cos();
+    0.5 * H_O_H_ANGLE_STIFFNESS * delta * delta
+}
+
+/// Temperature is a visual motion control, not kelvin. The eight-fold RMS
+/// speed span makes both endpoints perceptibly different inside one second.
+#[inline]
+pub fn target_temperature(u: f64) -> f64 {
+    64.0 * 64.0_f64.powf(u.clamp(0.0, 1.0))
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct TemplateAtom {
     pub element: u8,
     pub x: f64,
     pub y: f64,
-    pub charge: f64,
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct SpeciesTemplate {
-    pub atoms: &'static [TemplateAtom],
+pub struct TemplateBond {
+    pub a: usize,
+    pub b: usize,
 }
 
-const H2O: [TemplateAtom; 3] = [
-    TemplateAtom { element: 3, x: 0.0, y: 0.0, charge: -0.66 },
-    TemplateAtom { element: 0, x: -13.0, y: 11.0, charge: 0.33 },
-    TemplateAtom { element: 0, x: 13.0, y: 11.0, charge: 0.33 },
-];
-const H2: [TemplateAtom; 2] = [
-    TemplateAtom { element: 0, x: -8.0, y: 0.0, charge: 0.0 },
-    TemplateAtom { element: 0, x: 8.0, y: 0.0, charge: 0.0 },
-];
-const O2: [TemplateAtom; 2] = [
-    TemplateAtom { element: 3, x: -10.0, y: 0.0, charge: 0.0 },
-    TemplateAtom { element: 3, x: 10.0, y: 0.0, charge: 0.0 },
-];
-const CH4: [TemplateAtom; 5] = [
-    TemplateAtom { element: 1, x: 0.0, y: 0.0, charge: -0.40 },
-    TemplateAtom { element: 0, x: -17.0, y: 0.0, charge: 0.10 },
-    TemplateAtom { element: 0, x: 17.0, y: 0.0, charge: 0.10 },
-    TemplateAtom { element: 0, x: 0.0, y: -17.0, charge: 0.10 },
-    TemplateAtom { element: 0, x: 0.0, y: 17.0, charge: 0.10 },
-];
-const NH3: [TemplateAtom; 4] = [
-    TemplateAtom { element: 2, x: 0.0, y: 0.0, charge: -0.60 },
-    TemplateAtom { element: 0, x: -15.0, y: 8.0, charge: 0.20 },
-    TemplateAtom { element: 0, x: 15.0, y: 8.0, charge: 0.20 },
-    TemplateAtom { element: 0, x: 0.0, y: -16.0, charge: 0.20 },
-];
-const CO2: [TemplateAtom; 3] = [
-    TemplateAtom { element: 1, x: 0.0, y: 0.0, charge: 0.70 },
-    TemplateAtom { element: 3, x: -19.0, y: 0.0, charge: -0.35 },
-    TemplateAtom { element: 3, x: 19.0, y: 0.0, charge: -0.35 },
-];
-const NA: [TemplateAtom; 1] = [TemplateAtom { element: 4, x: 0.0, y: 0.0, charge: 1.0 }];
-const CL: [TemplateAtom; 1] = [TemplateAtom { element: 5, x: 0.0, y: 0.0, charge: -1.0 }];
+#[derive(Clone, Copy, Debug)]
+pub struct IngredientTemplate {
+    pub atoms: &'static [TemplateAtom],
+    pub bonds: &'static [TemplateBond],
+}
 
-pub const SPECIES: [SpeciesTemplate; 8] = [
-    SpeciesTemplate { atoms: &H2O }, SpeciesTemplate { atoms: &H2 },
-    SpeciesTemplate { atoms: &O2 }, SpeciesTemplate { atoms: &CH4 },
-    SpeciesTemplate { atoms: &NH3 }, SpeciesTemplate { atoms: &CO2 },
-    SpeciesTemplate { atoms: &NA }, SpeciesTemplate { atoms: &CL },
+const H_ATOMS: [TemplateAtom; 1] = [TemplateAtom { element: ELEMENT_H, x: 0.0, y: 0.0 }];
+const O_ATOMS: [TemplateAtom; 1] = [TemplateAtom { element: ELEMENT_O, x: 0.0, y: 0.0 }];
+const H2_ATOMS: [TemplateAtom; 2] = [
+    TemplateAtom { element: ELEMENT_H, x: -8.0, y: 0.0 },
+    TemplateAtom { element: ELEMENT_H, x: 8.0, y: 0.0 },
+];
+const O2_ATOMS: [TemplateAtom; 2] = [
+    TemplateAtom { element: ELEMENT_O, x: -10.0, y: 0.0 },
+    TemplateAtom { element: ELEMENT_O, x: 10.0, y: 0.0 },
+];
+const H2O_ATOMS: [TemplateAtom; 3] = [
+    TemplateAtom { element: ELEMENT_O, x: 0.0, y: 0.0 },
+    TemplateAtom { element: ELEMENT_H, x: -13.45, y: 10.36 },
+    TemplateAtom { element: ELEMENT_H, x: 13.45, y: 10.36 },
+];
+
+const NO_BONDS: [TemplateBond; 0] = [];
+const DIATOMIC_BOND: [TemplateBond; 1] = [TemplateBond { a: 0, b: 1 }];
+const WATER_BONDS: [TemplateBond; 2] = [
+    TemplateBond { a: 0, b: 1 },
+    TemplateBond { a: 0, b: 2 },
+];
+
+/// ABI v2 ingredient ids: 0 H, 1 O, 2 H2, 3 O2, 4 H2O.
+pub const INGREDIENTS: [IngredientTemplate; 5] = [
+    IngredientTemplate { atoms: &H_ATOMS, bonds: &NO_BONDS },
+    IngredientTemplate { atoms: &O_ATOMS, bonds: &NO_BONDS },
+    IngredientTemplate { atoms: &H2_ATOMS, bonds: &DIATOMIC_BOND },
+    IngredientTemplate { atoms: &O2_ATOMS, bonds: &DIATOMIC_BOND },
+    IngredientTemplate { atoms: &H2O_ATOMS, bonds: &WATER_BONDS },
 ];
 
 #[derive(Clone, Debug)]
@@ -118,26 +209,17 @@ impl Rng {
     }
 }
 
+/// Exact overlaps use a stable, id-derived normal so repulsion never vanishes.
 #[inline]
-pub fn target_temperature(u: f64) -> f64 {
-    0.025 * 58.0_f64.powf(u.clamp(0.0, 1.0))
-}
-
-#[inline]
-pub fn insertion_weight(age: f64) -> f64 {
-    let t = (age / INSERTION_RAMP).clamp(0.0, 1.0);
-    t * t * (3.0 - 2.0 * t)
-}
-
-/// C2 switch equal to one at `SWITCH_START` and zero at `PAIR_CUTOFF`.
-#[inline]
-pub fn cutoff_switch(r: f64) -> (f64, f64) {
-    if r <= SWITCH_START { return (1.0, 0.0); }
-    if r >= PAIR_CUTOFF { return (0.0, 0.0); }
-    let t = (r - SWITCH_START) / (PAIR_CUTOFF - SWITCH_START);
-    let t2 = t * t;
-    let t3 = t2 * t;
-    let s = 1.0 - 10.0 * t3 + 15.0 * t3 * t - 6.0 * t3 * t2;
-    let dsdt = -30.0 * t2 + 60.0 * t3 - 30.0 * t2 * t2;
-    (s, dsdt / (PAIR_CUTOFF - SWITCH_START))
+pub fn deterministic_direction(a: u32, b: u32) -> (f64, f64) {
+    let low = a.min(b) as u64;
+    let high = a.max(b) as u64;
+    let mut bits = low.wrapping_mul(0x9e37_79b9).wrapping_add(high ^ 0x85eb_ca6b);
+    bits ^= bits >> 16;
+    bits = bits.wrapping_mul(0x7feb_352d);
+    bits ^= bits >> 15;
+    let fraction = (bits as u32 as f64) / (u32::MAX as f64 + 1.0);
+    let angle = core::f64::consts::TAU * fraction;
+    let (sin, cos) = angle.sin_cos();
+    if a <= b { (cos, sin) } else { (-cos, -sin) }
 }
