@@ -2,13 +2,13 @@
 
 ## Metadata
 
-- Captured at: `2026-08-04T05:33:39Z`
+- Captured at: `2026-08-04T05:41:06Z`
 - Session id: `019fc894-5017-7f91-927d-5ece639a67bf`
 - Session started: `2026-08-03T17:03:10.900Z`
 - Source file: `rollout-2026-08-03T19-03-10-019fc894-5017-7f91-927d-5ece639a67bf.jsonl`
-- Source SHA-256: `5bc0e8286578e51c085976781fd61178118ff976bfd2ead6ee1661c91cd48faf`
+- Source SHA-256: `fd17fc43f067352b0513506267361d3bc09d9fb56885898aa49a5df3b9c96726`
 - Repository match: `yes`
-- Selection anchor: `codex-session-anchor: 20260804T053321Z-d7d647d6`
+- Selection anchor: `codex-session-anchor: 20260804T054048Z-834257f4`
 - Anchor match: `yes`
 
 > Exported by the commit-chat-push skill. Developer/system instructions, encrypted reasoning, token counts, and oversized raw logs are intentionally omitted.
@@ -384,6 +384,36 @@ yeet it
 I’m treating “yeet it” as ship the tested photopolymer: preserve the implementation chat, commit the current scoped changes, push, follow the repository’s release path, and verify the public result. I’ll leave the two `.sites-runtime/` folders and `prototype/` untouched. The commit-and-provenance workflow applies here, so I’m using it for the handoff.
 ```
 
+### Assistant (commentary) - 2026-08-04T05:34:00.295Z
+
+```text
+The release path is confirmed: `main` is exactly aligned with `origin/main`, and a push to `main` runs the full GitHub Pages workflow (lint, Node/build, native Rust, reproducible Wasm, and Chromium) before deployment. The redacted session transcript has been refreshed and scanned; it contains this complete polymer-to-photopolymer evolution and no credentials.
+```
+
+### Assistant (commentary) - 2026-08-04T05:34:33.133Z
+
+```text
+The release commit is now on `main`: `db833d8` (`feat: add atom-level photopolymer world`). Only the two pre-existing runtime-cache folders remain untracked. GitHub’s full Pages gate has started; I’m following it through deployment and will then compare the live assets and exercise the actual photopolymer flow on the public site.
+```
+
+### Assistant (commentary) - 2026-08-04T05:36:15.043Z
+
+```text
+The production workflow is green end-to-end: lint, application tests, native Rust, reproducible Wasm, Chromium interactions, artifact upload, and Pages deployment all passed for `db833d8`. I’m at the acceptance phase now—confirming the deployment record, byte identity of the public assets, HTTPS routing, and the live Light → reactive-site experience.
+```
+
+### Assistant (commentary) - 2026-08-04T05:39:01.657Z
+
+```text
+Live acceptance caught a real reset bug that CI did not cover: Reset inside Photopolymer resets the Wasm engine to the default two-hydrogen Water preset while leaving the Photopolymer UI selected. I’m fixing that before calling the release accepted, adding a regression test, rebuilding the artifact if required, and sending a corrective release through the same gate.
+```
+
+### Assistant (commentary) - 2026-08-04T05:40:47.400Z
+
+```text
+The reset fix is now proven in the actual corrected browser test: entering Photopolymer, pressing Reset, and remaining at 44 atoms passes on `devbox-home`, along with all nine Chromium scenarios. The fix is deliberately small—capture the selected experiment before Wasm reset refreshes the presentation state—so the Wasm artifact remains unchanged.
+```
+
 ## Implementation Activity
 
 ### Tool Call: wait - 2026-08-03T17:22:09.768Z
@@ -534,4 +564,46 @@ I’m treating “yeet it” as ship the tested photopolymer: preserve the imple
 
 ```json
 {"cell_id":"165","yield_time_ms":10000,"max_tokens":20000}
+```
+
+### Tool Call: wait - 2026-08-04T05:34:53.414Z
+
+```json
+{"cell_id":"14","yield_time_ms":30000,"max_tokens":12000}
+```
+
+### Tool Call: wait - 2026-08-04T05:35:29.860Z
+
+```json
+{"cell_id":"15","yield_time_ms":30000,"max_tokens":12000}
+```
+
+### Tool Call: wait - 2026-08-04T05:36:03.236Z
+
+```json
+{"cell_id":"16","yield_time_ms":30000,"max_tokens":12000}
+```
+
+### Tool Call: wait - 2026-08-04T05:38:19.652Z
+
+```json
+{"cell_id":"28","yield_time_ms":30000,"max_tokens":12000}
+```
+
+### Tool Call: wait - 2026-08-04T05:38:50.654Z
+
+```json
+{"cell_id":"30","yield_time_ms":30000,"max_tokens":12000}
+```
+
+### Tool Call: wait - 2026-08-04T05:40:01.195Z
+
+```json
+{"cell_id":"37","yield_time_ms":30000,"max_tokens":18000}
+```
+
+### Tool Call: wait - 2026-08-04T05:40:29.945Z
+
+```json
+{"cell_id":"38","yield_time_ms":30000,"max_tokens":18000}
 ```

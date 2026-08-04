@@ -48,6 +48,10 @@ test("system rail opens a causal atom-built photopolymer and an all-ingredients 
   await expect(page.locator('[aria-live="polite"]')).toContainText(/44 atoms/, {
     timeout: 4_000,
   });
+  await page.getByRole("button", { name: "Reset this experience" }).click();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/44 atoms/, {
+    timeout: 4_000,
+  });
   await page.getByRole("button", { name: "Place light" }).click();
   const canvas = page.locator(".molecular-canvas");
   const bounds = await canvas.boundingBox();

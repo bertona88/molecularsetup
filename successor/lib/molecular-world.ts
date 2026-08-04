@@ -599,6 +599,7 @@ export class MolecularWorld {
 
   reset(seed = this.initialSeed): void {
     const normalizedSeed = seed >>> 0;
+    const experiment = this.presentationExperiment;
     this.camera = { x: 0, y: 0, zoom: 1 };
     this.presentationSeed = normalizedSeed;
     this.presentationPlaying = true;
@@ -607,7 +608,7 @@ export class MolecularWorld {
     this.dispatch({ kind: "reset", seed: normalizedSeed });
     this.dispatch({
       kind: "load-experiment",
-      experiment: EXPERIMENT_ID[this.presentationExperiment],
+      experiment: EXPERIMENT_ID[experiment],
     });
   }
 
