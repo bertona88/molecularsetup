@@ -1,15 +1,15 @@
-# MolecularSetup engine ABI v3
+# MolecularSetup engine ABI v4
 
 ## Scope
 
 This crate is a deterministic, reduced-unit, two-dimensional bonding teaching
-model spanning the Water, generic Polymers, and Everything systems. It is
+model spanning the Water, Photopolymer, and Everything systems. It is
 non-predictive chemistry/materials intuition and has no reaction/product lookup. The
 ABI is dependency-free C/Wasm: a `wasm32-unknown-unknown` release exports
 linear `memory`, imports nothing, and owns one module-global world.
 
-ABI v3 is intentionally incompatible with v2. Both `ms_abi_version()` and
-`ms_model_version()` return `3`.
+ABI v4 is intentionally incompatible with v3. Both `ms_abi_version()` and
+`ms_model_version()` return `4`.
 
 ## Commands
 
@@ -19,7 +19,7 @@ time, and piston target are `f64`.
 | Export | Result |
 |---|---|
 | `ms_reset(seed)` | Recreate the seeded populated Make a bond world. |
-| `ms_load_experiment(id)` | Load Water ids `0 Make`, `1 Break`, `2 Ignite`, `3 Free`; Polymer ids `4 Grow`, `5 Stretch`, `6 Free`; or `7 Everything`; return `1`, else `0`. |
+| `ms_load_experiment(id)` | Load Water ids `0 Make`, `1 Break`, `2 Ignite`, `3 Free`; Photopolymer ids `4 Expose`, `5 Stretch cured`, `6 Free`; or `7 Everything`; return `1`, else `0`. |
 | `ms_set_playing(0_or_1)` | Pause/resume browser-time advance. |
 | `ms_set_temperature(u)` | Clamp semantic heat to `[0,1]`. |
 | `ms_spawn_ingredient(id,count,x,y)` | Insert whole ingredients and return accepted count. |
@@ -31,10 +31,10 @@ time, and piston target are `f64`.
 | `ms_advance(real_delta_ms)` | Execute at most five accumulated fixed steps; return executed count. |
 | `ms_step_fixed(count)` | Execute exactly `count` fixed steps for replay/tests. |
 
-Ingredient ids are `0 H`, `1 O`, `2 H2`, `3 O2`, `4 H2O`, `5 generic M2
-monomer`, and `6 generic X junction`. Count always means whole templates and is
-limited by the 18,000-site capacity. M and X are generic model sites, not
-chemical elements.
+Ingredient ids are `0 H`, `1 O`, `2 H2`, `3 O2`, `4 H2O`, `5 acrylic acid
+C3H4O2`, `6 ethylene glycol diacrylate C8H10O4`, and `7 hydrogen peroxide
+H2O2`. Count always means whole atom-built templates and is limited by the
+18,000-site capacity.
 
 Every command can grow memory or replace a packed vector. It invalidates every
 previous pointer and JavaScript typed-array view. Reacquire all views after
@@ -56,7 +56,7 @@ views may use pointer `0`; stats always contains one complete `f64` record.
 | Index | Meaning |
 |---:|---|
 | 0 | stable atom id |
-| 1 | site kind (`0 H`, `1 O`, `2 generic M`, `3 generic X`) |
+| 1 | element kind (`0 H`, `1 O`, `2 C`) |
 | 2–3 | x, y |
 | 4–5 | previous x, y |
 | 6–7 | vx, vy |
@@ -64,7 +64,7 @@ views may use pointer `0`; stats always contains one complete `f64` record.
 | 9 | decaying excitation |
 | 10 | grabbed (`0/1`) |
 | 11 | reserved/used integer valence |
-| 12 | finite-state flags |
+| 12 | flags: bit 0 numeric guard, bit 1 speed clamp, bit 2 peroxide initiator, bit 3 reactive site, bit 4 unconsumed vinyl carbon |
 | 13 | kinetic energy |
 | 14 | age |
 | 15 | reserved (`0`) |
@@ -148,8 +148,8 @@ changing collision counters, ledgers, bonds, atoms, or wall state.
 | 19 | atom capacity |
 | 20 | rejected ingredient count |
 | 21 | experiment id |
-| 22 | model version (`3`) |
-| 23 | ABI version (`3`) |
+| 22 | model version (`4`) |
+| 23 | ABI version (`4`) |
 | 24 | spark count |
 | 25 | collision count |
 | 26 | mean rolling wall load |
@@ -165,9 +165,10 @@ conservative energy claim.
 
 ## Model boundary
 
-The exact reduced rules, compressed H/O masses, generic M/X sites, collision
-response, valence, pair parameters, activation, angular preference, excitation,
-thermostat, piston, and ledgers are documented in
+The exact reduced rules, compressed H/O/C masses, atom-built photopolymer
+templates, local peroxide/vinyl flags, collision response, valence, pair
+parameters, activation, angular preference, excitation, thermostat, piston,
+and ledgers are documented in
 `../../MOLECULAR_MODEL_CONTRACT.md`. Packed topology is not evidence of a real
 pathway, product, polymer, rate, equilibrium, temperature, pressure, mechanism,
 or material property.

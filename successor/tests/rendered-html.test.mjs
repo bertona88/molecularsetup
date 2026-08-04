@@ -29,10 +29,11 @@ test("source presents water, polymer, and everything systems without a lesson pa
     "Hot",
     "Drag piston",
     "Water",
-    "Polymers",
+    "Photopolymer",
     "Everything",
-    "Grow a chain",
-    "Stretch a chain",
+    "Expose resin",
+    "Stretch cured",
+    "Light",
   ]) {
     assert.match(source, new RegExp(label));
   }

@@ -1,6 +1,53 @@
 # Validation report
 
-## Current multi-system polymerization candidate
+## Current atom-level photopolymer v4 candidate
+
+Date: 2026-08-03
+
+Candidate: uncommitted `main` working tree based on
+`d3b4a1e585ba26664934a8b94189d41692e16297`
+
+The candidate replaces generic M/X sites with atom-built acrylic acid
+C3H4O2, ethylene glycol diacrylate C8H10O4, and hydrogen peroxide H2O2
+templates. Photopolymer experiences are Expose resin, Stretch cured, and Free
+play. Local Light first cleaves the tagged peroxide O-O bond; a resulting
+reactive site can then consume a nearby vinyl C=C bond and pass reactivity
+onward under the reduced ABI/model `4/4` rules. No explanation panel is added.
+
+Evidence recorded in this run:
+
+| Check | Result |
+|---|---|
+| Native Rust model and LJ fixture on `devbox-home` | 24 passed, 0 failed; doc tests 0 failed |
+| Fresh release Wasm ABI smoke | 4 passed, 0 failed; pre-publish identity check intentionally skipped |
+| Full verified application build and Node tests | 10 passed, 0 failed |
+| Playwright Chromium on `devbox-home` | 9 passed, 0 failed |
+| TypeScript typecheck and ESLint | passed |
+| Static source-architecture tests | 3 passed, 0 failed |
+| Desktop and 390x844 visual browser QA | separated dark resin, light wave, reactive-site glow, ingredient controls, and mobile controls remained legible; no browser warnings/errors |
+
+The native exposure gate holds all 38 initial bonds unchanged for 360 fixed
+steps in the dark. After local light, it records initiator breaking, consumes
+at least one of 8 flagged vinyl carbons, and records new bond formation within
+720 more fixed steps. The cured preset contains 45 H/O/C atoms and 44 bonds;
+spring dragging produces a stressed, breaking, or removed bond. All native
+valence and finite-state checks remain green.
+
+The rebuilt zero-import artifact is
+`successor/public/engine/molecularsetup_engine.wasm`: 134,291 bytes, Wasm
+SHA-256 `42f1e69ce82ab499c5c18dce9893aeaf42744f1e6bfe2507313c66dae4ee32aa`,
+engine-source SHA-256
+`d87551628c80d477029038705ef304eaab694f1e757966e6262ae032a12dc227`, and
+manifest ABI/model `4/4`. The desktop visual gate observed 44 atoms and 38
+stable bonds before exposure; after placing light it observed 40 excited atoms
+and four visibly highlighted reactive sites. The 390x844 gate kept the system,
+experience, simulation, heat, and ingredient controls on-screen.
+
+`prototype/`, the root `.sites-runtime/`, and `successor/.sites-runtime/` were
+not modified. No commit, push, deployment, DNS change, hosted checkpoint, or
+production replacement was performed.
+
+## Prior multi-system polymerization candidate
 
 Date: 2026-08-03
 

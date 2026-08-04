@@ -3,10 +3,11 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const expectedAbiVersion = 3;
-const expectedModelVersion = 3;
-const elementValence = [1, 2, 2, 3];
-const ingredientAtomCounts = [1, 1, 2, 2, 3, 2, 1];
+const expectedAbiVersion = 4;
+const expectedModelVersion = 4;
+const elementValence = [1, 2, 4];
+const ingredientAtomCounts = [1, 1, 2, 2, 3, 9, 22, 4];
+const atomFlagVinyl = 1 << 4;
 const viewDefinitions = {
   atoms: { ArrayType: Float32Array, stride: 16 },
   bonds: { ArrayType: Float32Array, stride: 10 },
@@ -105,7 +106,7 @@ function readSnapshot(api) {
   for (let offset = 0; offset < views.atoms.values.length; offset += 16) {
     assertIntegerInRange(views.atoms.values[offset], 1, 0xffff_ffff, "atom id");
     const element = views.atoms.values[offset + 1];
-    assertIntegerInRange(element, 0, 3, "element id");
+    assertIntegerInRange(element, 0, 2, "element id");
     assert.ok(views.atoms.values[offset + 8] > 0, "atom radius must be positive");
     assert.ok(views.atoms.values[offset + 9] >= 0, "excitation cannot be negative");
     assertIntegerInRange(views.atoms.values[offset + 10], 0, 1, "grab state");
@@ -165,10 +166,10 @@ function serializableSnapshot(views) {
   );
 }
 
-test("real Wasm implements every ABI v3 command and packed view", async () => {
+test("real Wasm implements every ABI v4 command and packed view", async () => {
   const api = await instantiateEngine();
-  assert.equal(api.ms_abi_version(), 3);
-  assert.equal(api.ms_model_version(), 3);
+  assert.equal(api.ms_abi_version(), 4);
+  assert.equal(api.ms_model_version(), 4);
 
   let state = mutate(api, "ms_reset", 0x1234_5678).views;
   assert.equal(state.atoms.count, 2, "reset must open the populated make-bond preset");
@@ -180,10 +181,10 @@ test("real Wasm implements every ABI v3 command and packed view", async () => {
     [1, 2, 1],
     [2, 24, 12],
     [3, 9, 4],
-    [4, 16, 8],
-    [5, 16, 15],
-    [6, 12, 5],
-    [7, 14, 6],
+    [4, 44, 38],
+    [5, 45, 44],
+    [6, 66, 59],
+    [7, 22, 15],
   ]) {
     const loaded = mutate(api, "ms_load_experiment", experiment);
     assert.equal(loaded.result, 1);
@@ -217,6 +218,24 @@ test("real Wasm implements every ABI v3 command and packed view", async () => {
   assert.equal(mutate(api, "ms_step_fixed", 120).result, 120);
   state = readSnapshot(api);
   assert.ok(state.stats.values[10] > 0, "spark did not enter the breaking-energy ledger");
+
+  mutate(api, "ms_reset", 0x5048_4f54);
+  mutate(api, "ms_load_experiment", 4);
+  const vinylBefore = readSnapshot(api).atoms.values.filter(
+    (value, index) => index % 16 === 12 && (Math.trunc(value) & atomFlagVinyl) !== 0,
+  ).length;
+  assert.equal(vinylBefore, 8);
+  mutate(api, "ms_step_fixed", 360);
+  assert.equal(readSnapshot(api).bonds.count, 38, "dark resin changed connectivity");
+  mutate(api, "ms_apply_spark", 0, 0, 360, 420);
+  mutate(api, "ms_step_fixed", 720);
+  state = readSnapshot(api);
+  const vinylAfter = state.atoms.values.filter(
+    (value, index) => index % 16 === 12 && (Math.trunc(value) & atomFlagVinyl) !== 0,
+  ).length;
+  assert.ok(vinylAfter < vinylBefore, "light did not consume a packed vinyl flag");
+  assert.ok(state.stats.values[9] > 0, "exposed resin formed no new bond");
+  assert.ok(state.stats.values[10] > 0, "exposed resin recorded no initiator cleavage");
 
   mutate(api, "ms_load_experiment", 1);
   state = readSnapshot(api);
@@ -317,7 +336,7 @@ test("real Wasm rejects invalid commands and corrupt modules fail closed", async
   await assert.rejects(WebAssembly.compile(Uint8Array.from([0, 97, 115, 109, 1])));
 });
 
-test("checked-in artifact identity matches the ABI v3 manifest", async (context) => {
+test("checked-in artifact identity matches the ABI v4 manifest", async (context) => {
   if (process.env.MOLECULARSETUP_ENGINE_WASM) {
     context.skip("build smoke uses an unpublished target artifact");
     return;
@@ -326,8 +345,8 @@ test("checked-in artifact identity matches the ABI v3 manifest", async (context)
   const manifest = JSON.parse(
     await readFile(new URL("../public/engine/molecularsetup_engine.manifest.json", import.meta.url), "utf8"),
   );
-  assert.equal(manifest.abiVersion, 3);
-  assert.equal(manifest.modelVersion, 3);
+  assert.equal(manifest.abiVersion, 4);
+  assert.equal(manifest.modelVersion, 4);
   assert.equal(manifest.wasmBytes, bytes.length);
   assert.equal(manifest.wasmSha256, createHash("sha256").update(bytes).digest("hex"));
 });

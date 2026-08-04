@@ -31,31 +31,40 @@ test("populated first paint exposes four modes and direct manipulation", async (
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 
-test("system rail opens a causal polymer world and an all-ingredients sandbox", async ({
+test("system rail opens a causal atom-built photopolymer and an all-ingredients sandbox", async ({
   page,
 }) => {
   await openReadyWorld(page);
-  await page.getByRole("button", { name: "Polymers", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Grow a chain", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Stretch a chain", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Photopolymer", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Expose resin", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Stretch cured", exact: true })).toBeVisible();
   await expect(page.getByRole("button", {
-    name: "Add one two-ended monomer. Hold to add a stream.",
+    name: "Add one acrylic acid monomer. Hold to add a stream.",
   })).toBeVisible();
-  await expect(page.locator('[aria-live="polite"]')).toContainText(/16 atoms/, {
+  await expect(page.getByRole("button", {
+    name: "Add one ethylene glycol diacrylate crosslinker. Hold to add a stream.",
+  })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Place light" })).toBeVisible();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/44 atoms/, {
     timeout: 4_000,
   });
-  await expect(page.locator('[aria-live="polite"]')).toContainText(/15 bonds/, {
-    timeout: 6_000,
-  });
+  await page.getByRole("button", { name: "Place light" }).click();
+  const canvas = page.locator(".molecular-canvas");
+  const bounds = await canvas.boundingBox();
+  await page.mouse.click(bounds!.x + bounds!.width / 2, bounds!.y + bounds!.height / 2);
+  await expect(page.locator('[aria-live="polite"]')).toContainText(
+    /[1-9]\d* reactive sites|[1-9]\d* breaking|39 bonds|4\d bonds/,
+    { timeout: 8_000 },
+  );
 
   await page.getByRole("button", { name: "Everything", exact: true }).click();
   await expect(page.getByRole("button", {
     name: "Add one Water molecule. Hold to add a stream.",
   })).toBeVisible();
   await expect(page.getByRole("button", {
-    name: "Add one three-way junction. Hold to add a stream.",
+    name: "Add one ethylene glycol diacrylate crosslinker. Hold to add a stream.",
   })).toBeVisible();
-  await expect(page.locator('[aria-live="polite"]')).toContainText(/14 atoms/, {
+  await expect(page.locator('[aria-live="polite"]')).toContainText(/22 atoms/, {
     timeout: 4_000,
   });
 });
@@ -64,14 +73,14 @@ test("stretch experience turns a direct pull into visible polymer bond stress", 
   page,
 }) => {
   await openReadyWorld(page);
-  await page.getByRole("button", { name: "Polymers", exact: true }).click();
-  await page.getByRole("button", { name: "Stretch a chain", exact: true }).click();
+  await page.getByRole("button", { name: "Photopolymer", exact: true }).click();
+  await page.getByRole("button", { name: "Stretch cured", exact: true }).click();
   const canvas = page.locator(".molecular-canvas");
   const bounds = await canvas.boundingBox();
   expect(bounds).not.toBeNull();
   const centerX = bounds!.x + bounds!.width / 2;
   const centerY = bounds!.y + bounds!.height / 2;
-  await page.mouse.move(centerX - 135, centerY);
+  await page.mouse.move(centerX - 149, centerY - 10);
   await page.mouse.down();
   await page.mouse.move(centerX - 285, centerY, { steps: 18 });
   await expect(page.locator('[aria-live="polite"]')).toContainText(/1 grabbed/, {

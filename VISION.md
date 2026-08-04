@@ -38,7 +38,7 @@ observe closely and alive enough to invite another experiment.
 6. **Keep claims narrower than the experience.** The world may be coherent and
    educational without pretending to predict laboratory chemistry.
 
-## Version 3 experience
+## Version 4 experience
 
 The world is organized in three systems. A system owns its ingredient family,
 interaction rules, and available starting experiences. An experience is only a
@@ -46,22 +46,25 @@ seeded starting condition inside that system; it is not a scripted product.
 
 - **Water** retains Make a bond, Break a bond, Ignite, and Free play with H, O,
   H2, O2, and H2O.
-- **Polymers** introduces generic two-ended monomers and three-way junctions
-  with Grow a chain, Stretch a chain, and Free play.
+- **Photopolymer** introduces atom-built acrylic acid, ethylene glycol
+  diacrylate, and hydrogen peroxide templates with Expose resin, Stretch cured,
+  and Free play.
 - **Everything** exposes both ingredient families in one free sandbox. The
   families share the container, heat, spark, grabbing, and wall mechanics but
   do not gain invented cross-family bonds.
 
-`M` and `X` are visibly generic model sites, not chemical elements or claims
-about a named polymer. The current interface does not include a lesson or
-explanation panel.
+The photopolymer ingredients display every C, H, and O atom in their declared
+structural templates. Light cleaves the reduced peroxide initiator rule before
+a reactive site can consume a nearby vinyl C=C bond and pass reactivity onward.
+This is a causal teaching topology, not a predictive reaction mechanism. The
+current interface does not include a lesson or explanation panel.
 
 The persistent controls are deliberately small:
 
-- systems: **Water**, **Polymers**, **Everything**;
+- systems: **Water**, **Photopolymer**, **Everything**;
 - system-scoped experiences and ingredients;
 - a broad horizontal **Cold / Warm / Hot** control;
-- a local **Spark** tool;
+- a local **Spark** tool in Water and **Light** tool in Photopolymer;
 - play/pause and reset.
 
 One tap or drag adds one ingredient. Holding streams additional ingredients.
@@ -85,19 +88,23 @@ atom.
   least 75% of oxygen atoms two stable O-H neighbors within eight seconds.
 - **Free play:** all later behavior follows the same collision, activation,
   valence, bond, angle, heat, grab, and wall rules.
-- **Grow a chain:** eight separate generic two-ended monomers close into one
-  connected 16-site chain through the ordinary activated-collision rule.
-- **Stretch a chain:** a connected 16-site chain visibly enters stressed or
-  breaking bond states when pulled.
-- **Polymer Free play:** monomers and junctions use the same collision,
-  valence, activation, formation, strain, and breaking rules.
-- **Everything:** the water and polymer families coexist under their declared
-  local pair rules; unsupported cross-family pairs do not bond.
+- **Expose resin:** four atom-built acrylic acid templates and two H2O2
+  initiators remain topologically unchanged in the dark. Local light first
+  cleaves an initiator O-O bond, then the tested seed consumes at least one
+  vinyl C=C site and forms a new bond.
+- **Stretch cured:** five atom-built acrylic acid repeat structures begin as a
+  connected backbone and visibly enter stressed or breaking bond states when
+  pulled.
+- **Photopolymer Free play:** acrylic acid, ethylene glycol diacrylate, and
+  H2O2 use the same local exposure, reactive-site, encounter, valence,
+  formation, strain, and breaking rules.
+- **Everything:** water and photopolymer ingredients coexist in one sandbox
+  under the same declared local rules.
 
 ## Architecture
 
 - Rust owns deterministic model state and fixed-step execution.
-- A zero-import Wasm module exposes ABI/model 3/3 commands and packed views.
+- A zero-import Wasm module exposes ABI/model 4/4 commands and packed views.
 - TypeScript owns gestures, camera, accessibility, load failure, and backend
   validation.
 - Canvas2D owns presentation. WebGPU and sound are intentionally out of scope.

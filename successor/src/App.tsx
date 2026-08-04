@@ -75,13 +75,13 @@ const SYSTEMS: readonly SystemDefinition[] = [
   },
   {
     id: "polymer",
-    label: "Polymers",
-    shortLabel: "—M—",
-    ingredients: ["monomer", "junction"],
+    label: "Photopolymer",
+    shortLabel: "hν",
+    ingredients: ["acrylicAcid", "diacrylate", "peroxide"],
     experiences: [
-      { id: "growChain", label: "Grow a chain", cue: "Watch the links close", temperature: 32 },
-      { id: "stretchChain", label: "Stretch a chain", cue: "Pull either end", temperature: 18 },
-      { id: "polymerFreePlay", label: "Free play", cue: "Add, heat, spark, compress", temperature: 42 },
+      { id: "exposeResin", label: "Expose resin", cue: "Place light, then watch C=C links open", temperature: 20 },
+      { id: "stretchCured", label: "Stretch cured", cue: "Pull the atom-built backbone", temperature: 12 },
+      { id: "photopolymerFreePlay", label: "Free play", cue: "Mix monomer, crosslinker, initiator, light", temperature: 30 },
     ],
   },
   {
@@ -94,8 +94,9 @@ const SYSTEMS: readonly SystemDefinition[] = [
       "hydrogen",
       "oxygen",
       "water",
-      "monomer",
-      "junction",
+      "acrylicAcid",
+      "diacrylate",
+      "peroxide",
     ],
     experiences: [
       { id: "everything", label: "Free play", cue: "Every ingredient, one sandbox", temperature: 40 },
@@ -130,10 +131,23 @@ const presentationQuality = (
 };
 
 function IngredientThumbnail({ ingredient }: { ingredient: Ingredient }) {
+  const xs = ingredient.atoms.map((atom) => atom.x);
+  const ys = ingredient.atoms.map((atom) => atom.y);
+  const minimumX = Math.min(...xs);
+  const maximumX = Math.max(...xs);
+  const minimumY = Math.min(...ys);
+  const maximumY = Math.max(...ys);
+  const scale = Math.min(
+    1.08,
+    54 / Math.max(1, maximumX - minimumX),
+    30 / Math.max(1, maximumY - minimumY),
+  );
+  const centerX = (minimumX + maximumX) / 2;
+  const centerY = (minimumY + maximumY) / 2;
   const points = ingredient.atoms.map((atom) => ({
     ...atom,
-    x: atom.x * 1.12 + 36,
-    y: atom.y * 1.12 + 30,
+    x: (atom.x - centerX) * scale + 36,
+    y: (atom.y - centerY) * scale + 24,
   }));
   return (
     <span className="ingredient-visual" aria-hidden="true">
@@ -184,6 +198,15 @@ function SparkIcon() {
     <svg viewBox="0 0 24 24" aria-hidden="true">
       <path d="m13.4 2-7 11h5.1L10.7 22l7-12h-5.1l.8-8Z" />
       <path d="m5 5-1.8-1.8M19 5l1.8-1.8M4 18l-2 1M20 18l2 1" />
+    </svg>
+  );
+}
+
+function LightIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true">
+      <circle cx="12" cy="12" r="3.8" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1" />
     </svg>
   );
 }
@@ -642,6 +665,8 @@ export default function Home() {
   const activeIngredientKeys = new Set(activeSystem.ingredients);
   const activeIngredients = INGREDIENTS.filter((ingredient) => activeIngredientKeys.has(ingredient.id));
   const controlsDisabled = engineStatus === "error";
+  const activationLabel = system === "polymer" ? "Light" : system === "everything" ? "Energy" : "Spark";
+  const activationPlacementName = activationLabel === "Spark" ? "a spark" : activationLabel.toLowerCase();
 
   return (
     <main className={`lab-shell system-${system}`}>
@@ -662,7 +687,10 @@ export default function Home() {
           if (event.code === "Space") {
             event.preventDefault();
             togglePlaying();
-          } else if (event.key.toLowerCase() === "s") {
+          } else if (
+            event.key.toLowerCase() === "s" ||
+            (system === "polymer" && event.key.toLowerCase() === "l")
+          ) {
             setSparkArmed(true);
           } else if (event.key === "Enter" && sparkArmed) {
             issueWorldCommand((activeWorld) => activeWorld.applySpark(world.camera.x, world.camera.y));
@@ -759,13 +787,13 @@ export default function Home() {
         <button
           type="button"
           className={`spark-button ${sparkArmed ? "is-active" : ""}`}
-          aria-label={sparkArmed ? "Cancel spark placement" : "Place a spark"}
+          aria-label={sparkArmed ? `Cancel ${activationLabel.toLowerCase()} placement` : `Place ${activationPlacementName}`}
           aria-pressed={sparkArmed}
           disabled={controlsDisabled}
           onClick={() => setSparkArmed((current) => !current)}
         >
-          <SparkIcon />
-          <span>Spark</span>
+          {system === "polymer" ? <LightIcon /> : <SparkIcon />}
+          <span>{activationLabel}</span>
         </button>
         <button
           type="button"

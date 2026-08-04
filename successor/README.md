@@ -1,13 +1,13 @@
 # MolecularSetup chemistry-intuition successor
 
 This directory contains the static React/Canvas2D browser shell and the
-deterministic Rust/WebAssembly bonding engine for ABI/model v3.
+deterministic Rust/WebAssembly bonding engine for ABI/model v4.
 
 ## Experience
 
-- Water, Polymers, and Everything systems in a left rail;
-- system-scoped experiences and ingredient shelves, including generic M2
-  monomers and X junctions;
+- Water, Photopolymer, and Everything systems in a left rail;
+- atom-built acrylic acid, ethylene glycol diacrylate, and hydrogen peroxide
+  ingredients with local Light exposure;
 - explicit forming, stable, stressed, and breaking bonds drawn above atoms;
 - decaying local spark excitation and persistent causal event traces;
 - spring atom grabbing, empty-canvas pan, wheel/pinch zoom;
@@ -52,13 +52,14 @@ npm run test:browser
 
 `engine:build` compiles locked/offline, runs the real-Wasm ABI test, publishes
 the artifact and manifest, verifies source/artifact hashes, and requires zero
-imports plus ABI/model `3/3`.
+imports plus ABI/model `4/4`.
 
 ## Claim boundary
 
 The model is dimensionless, planar, reduced, pedagogical, and non-predictive.
-Its oxygen mass is deliberately compressed, its generic M/X sites are not
-chemical elements, and its bond parameters are not a calibrated force field.
+Its oxygen and carbon masses are deliberately compressed; its peroxide
+cleavage, reactive-site transfer, and vinyl-consumption rules are reduced
+teaching behavior; and its bond parameters are not a calibrated force field.
 Read `../MOLECULAR_MODEL_CONTRACT.md`,
 `engine/ENGINE_ABI.md`, `../CLAIMS_AND_VALIDATION.md`, and
 `../ACCEPTANCE_TESTS.md` before changing or presenting behavior.

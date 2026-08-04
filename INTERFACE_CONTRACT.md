@@ -4,12 +4,12 @@
 
 The main route is a full-viewport Canvas2D molecular field that becomes
 populated as soon as the verified engine loads. A side rail selects Water,
-Polymers, or Everything. Persistent visible controls are limited to:
+Photopolymer, or Everything. Persistent visible controls are limited to:
 
 - the three-system rail;
 - system-scoped experience buttons;
 - the active system's ingredient buttons;
-- Spark;
+- Spark in Water, Light in Photopolymer, and Energy in Everything;
 - play/pause and reset;
 - one broad horizontal Cold / Warm / Hot control.
 
@@ -18,9 +18,9 @@ experience has no arbitrary boundary drawing, numerical readout, chart,
 inspector, property table, reaction recipe, product selector, or lesson panel.
 
 Water exposes Make a bond, Break a bond, Ignite, and Free play with H, O, H2,
-O2, and H2O. Polymers exposes Grow a chain, Stretch a chain, and Free play with
-generic M2 monomers and X junctions. Everything exposes one Free play
-experience and all seven ingredients.
+O2, and H2O. Photopolymer exposes Expose resin, Stretch cured, and Free play
+with acrylic acid, ethylene glycol diacrylate, and hydrogen peroxide.
+Everything exposes one Free play experience and all eight ingredients.
 
 ## Gestures
 
@@ -35,7 +35,7 @@ experience and all seven ingredients.
 | Drag empty canvas | Pan |
 | Wheel | Zoom around pointer |
 | Two-finger pinch/drag | Zoom and pan around gesture center |
-| Arm Spark, then point on canvas | Create one local expanding activation wave |
+| Arm Spark/Light/Energy, then point on canvas | Create one local expanding activation wave |
 | Drag gold piston wall | Set its target; wall approaches at finite speed |
 
 A card pointer cancellation never adds an ingredient. A second active canvas
@@ -46,8 +46,9 @@ a hidden quantity batch.
 ## Keyboard
 
 - Space toggles play/pause while the canvas is focused.
-- `S` arms spark placement; Enter applies it at the camera center.
-- Escape cancels spark and releases an active grab.
+- `S` arms activation placement; `L` also arms Light in Photopolymer. Enter
+  applies it at the camera center.
+- Escape cancels activation placement and releases an active grab.
 - Arrow keys pan the focused canvas.
 - Native button and range keyboard behavior remains available.
 - Keyboard activation of an ingredient adds exactly one copy.
@@ -64,12 +65,12 @@ inside one second; the engine acceptance ratio is at least 5x.
 The browser adapter provides semantic operations equivalent to:
 
 ```ts
-interface SimulationBackendV3 {
+interface SimulationBackendV4 {
   reset(seed: number): void;
   loadExperiment(id: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7): void;
   setPlaying(value: boolean): void;
   setTemperature(normalized: number): void;
-  spawnIngredient(id: 0 | 1 | 2 | 3 | 4 | 5 | 6, count: number, x: number, y: number): number;
+  spawnIngredient(id: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7, count: number, x: number, y: number): number;
   applySpark(x: number, y: number, energy: number, radius: number): boolean;
   grabAtom(atomId: number, x: number, y: number): boolean;
   dragAtom(atomId: number, x: number, y: number): boolean;
@@ -80,7 +81,7 @@ interface SimulationBackendV3 {
 }
 ```
 
-The Wasm module is the only backend. It must report ABI/model `3/3`, export
+The Wasm module is the only backend. It must report ABI/model `4/4`, export
 memory, have zero imports, and expose packed atom, explicit-bond, wall, event,
 and statistics views. Per-frame atom/bond objects do not cross the boundary.
 
@@ -121,8 +122,8 @@ every deterministic fixed step independently of presentation cadence.
 - Every control has a descriptive accessible name and visible focus.
 - System and experience buttons expose pressed state.
 - No accessibility node is created per atom.
-- One polite summary reports H/O and generic M/X counts, bond-state counts, excited atoms,
-  active grab state, and play state.
+- One polite summary reports H/O/C counts, bond-state counts, excited atoms,
+  reactive sites, active grab state, and play state.
 - Canvas instructions describe grab, pan, and piston interactions.
 - Engine loading has status text. Blocked, corrupt, or wrong-version Wasm
   produces an alert, disables commands, and leaves the world inert.

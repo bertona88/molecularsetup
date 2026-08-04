@@ -2,7 +2,7 @@
 
 ## Native Rust gate
 
-- ABI/model constants are exactly `3/3`; reset opens the populated Make a bond
+- ABI/model constants are exactly `4/4`; reset opens the populated Make a bond
   preset inside a four-wall container.
 - A nonbonded atom collision conserves total linear momentum within the named
   tolerance and changes normal velocities.
@@ -30,12 +30,16 @@
   wall load/impact and positive wall work, and remains finite.
 - Hot RMS motion is at least five times cold motion after one second.
 - Oxygen displacement is visible at Warm and larger at Hot after one second.
-- Grow a chain begins with eight separate generic M2 monomers and forms one
-  connected 16-site chain within one second.
-- Stretch a chain begins as one 16-site chain and spring dragging makes at
-  least one link visibly stressed, breaking, or broken.
-- Polymer Free play accepts M2 monomers and X junctions without exceeding M
-  valence 2 or X valence 3; Everything contains both H/O and M/X families.
+- Expose resin begins with four atom-built acrylic acid monomers and two H2O2
+  initiators. It preserves its 38 initial bonds for three dark seconds; after
+  local light it records initiator breaking, consumes at least one of 8
+  flagged vinyl carbons, and records new bond formation within six seconds.
+- Stretch cured begins as a connected five-monomer, 45-atom backbone and
+  spring dragging makes at least one bond visibly stressed, breaking, or
+  broken.
+- Photopolymer Free play accepts acrylic acid, ethylene glycol diacrylate, and
+  hydrogen peroxide without exceeding H valence 1, O valence 2, or C valence
+  4; Everything contains H/O/C ingredients.
 - Invalid experiments, ingredients, non-finite sparks/targets, and oversized
   frame deltas fail safely; browser advance remains capped at five steps.
 - The independent Lennard-Jones fixture continues to pass its documented
@@ -43,7 +47,7 @@
 
 ## Real-Wasm gate
 
-- The release module has zero imports and exports memory plus every v3 command:
+- The release module has zero imports and exports memory plus every v4 command:
   reset, load experiment, play/pause, temperature, spawn ingredient, spark,
   grab, drag, release, piston target, frame advance, and exact fixed stepping.
 - Atom stride 16 exposes id, H/O, position/history, velocity, radius,
@@ -54,8 +58,8 @@
   load, impact, target, and the single movable flag.
 - Event stride 10 exposes kinds 1–8, endpoints, location, magnitude, age,
   1.2–2 second lifetime, event energy, and wall id.
-- Statistics stride 28 agrees with view counts and reports model/ABI `3/3`.
-- All eight experience ids and seven ingredient ids have the exact documented
+- Statistics stride 28 agrees with view counts and reports model/ABI `4/4`.
+- All eight experience ids and eight ingredient ids have the exact documented
   atom/bond count.
 - Spark, atom grab/drag/release, and piston targeting mutate their packed views
   as documented.
@@ -67,21 +71,22 @@
   statistics arrays.
 - Invalid ids and non-finite values return failure without corrupting views;
   corrupt Wasm cannot compile.
-- The public bytes match manifest SHA-256/size and manifest ABI/model `3/3`.
+- The public bytes match manifest SHA-256/size and manifest ABI/model `4/4`.
 
 ## Static and browser application gate
 
 - TypeScript typecheck and lint pass without a JavaScript physics, bond,
   thermal-randomness, reaction, or fallback implementation.
-- The v3 catalog keeps H, O, H2, O2, H2O at ids `0..4` and adds generic M2 and
-  X at ids `5..6`.
-- The static page presents Water, Polymers, and Everything; their scoped
+- The v4 catalog keeps H, O, H2, O2, H2O at ids `0..4` and adds acrylic acid,
+  ethylene glycol diacrylate, and hydrogen peroxide at ids `5..7`.
+- The static page presents Water, Photopolymer, and Everything; their scoped
   experiences and ingredient shelves; one-at-a-time insertion; hold stream;
   Spark; play/pause; reset; piston cue; and horizontal Cold/Warm/Hot.
 - It contains no quantity slider, dashboard, inspector, persistent numerical
   readout, reaction recipe, kelvin, or pascal label.
 - A Chromium run waits for populated first paint, verifies all three systems,
-  and observes Grow a chain reach 15 bonds from eight separate monomers.
+  and observes local Light produce initiator cleavage, a reactive site, vinyl
+  consumption, or new bond formation in Expose resin.
 - Pointer dragging at the reference H position exercises the atom-grab path.
 - Ignite spark placement arms, commits locally, disarms, and produces excited
   or breaking summary state.
@@ -111,8 +116,8 @@
 
 ## Manual interaction matrix before public replacement
 
-1. Test tap, drag, hold stream, cancellation, and secondary touch for all five
-   ingredients with mouse, touch, and stylus where supported.
+1. Test tap, drag, hold stream, cancellation, and secondary touch for every
+   system-scoped ingredient with mouse, touch, and stylus where supported.
 2. Grab each element and bonded atom; drag slowly, quickly, across a wall, and
    while a second pointer begins pinch.
 3. Place sparks at center, edge, outside a cluster, and during piston motion;

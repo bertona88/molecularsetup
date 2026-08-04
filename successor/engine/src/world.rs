@@ -1,10 +1,12 @@
 use crate::model::{
-    angle_preference_energy, deterministic_direction, pair_param, target_temperature,
+    angle_preference_energy, bond_param, deterministic_direction, pair_param, target_temperature,
     ElementParam, PairParam, Rng, ABI_VERSION, BOND_BREAKING, BOND_FORMING, BOND_STABLE,
-    BOND_STRESSED, ELEMENTS, ELEMENT_H, ELEMENT_M, ELEMENT_O, ELEMENT_X,
+    BOND_STRESSED, ELEMENTS, ELEMENT_C, ELEMENT_H, ELEMENT_O,
+    ATOM_FLAG_NUMERIC_GUARD, ATOM_FLAG_PHOTOINITIATOR, ATOM_FLAG_RADICAL,
+    ATOM_FLAG_SPEED_CLAMP, ATOM_FLAG_VINYL, C_C_SINGLE,
     EXPERIMENT_BREAK_BOND, EXPERIMENT_EVERYTHING, EXPERIMENT_FREE_PLAY,
-    EXPERIMENT_GROW_CHAIN, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND,
-    EXPERIMENT_POLYMER_FREE_PLAY, EXPERIMENT_STRETCH_CHAIN, FIXED_DT,
+    EXPERIMENT_EXPOSE_RESIN, EXPERIMENT_IGNITE, EXPERIMENT_MAKE_BOND,
+    EXPERIMENT_PHOTOPOLYMER_FREE_PLAY, EXPERIMENT_STRETCH_CURED, FIXED_DT,
     H_O_H_ANGLE_RADIANS, H_O_H_ANGLE_STIFFNESS, INGREDIENTS, MAX_ATOMS,
     MAX_SPEED, MODEL_VERSION, NEIGHBOR_CELL, WORLD_LIMIT,
 };
@@ -259,9 +261,9 @@ impl World {
             EXPERIMENT_BREAK_BOND => self.load_break_bond(),
             EXPERIMENT_IGNITE => self.load_ignite(),
             EXPERIMENT_FREE_PLAY => self.load_free_play(),
-            EXPERIMENT_GROW_CHAIN => self.load_grow_chain(),
-            EXPERIMENT_STRETCH_CHAIN => self.load_stretch_chain(),
-            EXPERIMENT_POLYMER_FREE_PLAY => self.load_polymer_free_play(),
+            EXPERIMENT_EXPOSE_RESIN => self.load_expose_resin(),
+            EXPERIMENT_STRETCH_CURED => self.load_stretch_cured(),
+            EXPERIMENT_PHOTOPOLYMER_FREE_PLAY => self.load_photopolymer_free_play(),
             EXPERIMENT_EVERYTHING => self.load_everything(),
             _ => unreachable!(),
         }
@@ -313,50 +315,61 @@ impl World {
         self.push_atom(ELEMENT_O, 135.0, 82.0, -7.0, -4.0);
     }
 
-    fn load_grow_chain(&mut self) {
-        self.temperature_u = 0.32;
-        for index in 0..8 {
-            let center_x = -112.0 + index as f64 * 32.0;
-            let drift_x = 17.5 - index as f64 * 5.0;
-            self.spawn_template_at(5, center_x, 0.0, 0.0, drift_x, 0.0);
-        }
-        for atom in &mut self.atoms {
-            if atom.element == ELEMENT_M { atom.excitation = 44.0; }
-        }
-    }
-
-    fn load_stretch_chain(&mut self) {
-        self.temperature_u = 0.18;
-        let mut previous: Option<usize> = None;
-        for index in 0..16 {
-            let atom = self.push_atom(ELEMENT_M, -135.0 + index as f64 * 18.0, 0.0, 0.0, 0.0);
-            if let Some(left) = previous { self.add_stable_bond(left, atom); }
-            previous = Some(atom);
-        }
-    }
-
-    fn load_polymer_free_play(&mut self) {
-        self.temperature_u = 0.42;
-        let placements = [
-            (-112.0, -72.0, 0.18),
-            (-34.0, 58.0, -0.42),
-            (42.0, -64.0, 0.72),
-            (112.0, 48.0, -0.16),
-            (2.0, 8.0, 1.18),
-        ];
-        for (x, y, rotation) in placements {
+    fn load_expose_resin(&mut self) {
+        self.temperature_u = 0.12;
+        for (x, y, rotation) in [
+            (-118.0, -72.0, 0.0),
+            (40.0, -86.0, 2.70),
+            (-35.0, 88.0, -1.25),
+            (130.0, 70.0, 3.05),
+        ] {
             self.spawn_template_at(5, x, y, rotation, 0.0, 0.0);
         }
-        self.push_atom(ELEMENT_X, 0.0, -118.0, 0.0, 5.0);
-        self.push_atom(ELEMENT_X, 128.0, -88.0, -5.0, 3.0);
+        self.spawn_template_at(7, -178.0, -72.0, 0.0, 6.0, 0.0);
+        self.spawn_template_at(7, 190.0, 70.0, core::f64::consts::PI, -6.0, 0.0);
+    }
+
+    fn load_stretch_cured(&mut self) {
+        self.temperature_u = 0.12;
+        let mut starts = Vec::new();
+        for index in 0..5 {
+            starts.push(self.spawn_template_at(
+                5,
+                -118.0 + index as f64 * 52.0,
+                if index % 2 == 0 { -8.0 } else { 8.0 },
+                if index % 2 == 0 { 0.08 } else { -0.08 },
+                0.0,
+                0.0,
+            ));
+        }
+        for &start in &starts {
+            self.consume_vinyl_double_bond(start);
+        }
+        for pair in starts.windows(2) {
+            self.add_stable_bond_order(pair[0] + 1, pair[1], 1);
+        }
+    }
+
+    fn load_photopolymer_free_play(&mut self) {
+        self.temperature_u = 0.30;
+        for (x, y, rotation) in [
+            (-138.0, -82.0, 0.12),
+            (-98.0, 86.0, -0.28),
+            (116.0, -76.0, 2.92),
+            (132.0, 86.0, 3.34),
+        ] {
+            self.spawn_template_at(5, x, y, rotation, 0.0, 0.0);
+        }
+        self.spawn_template_at(6, 0.0, 8.0, 1.57, 0.0, 0.0);
+        self.spawn_template_at(7, -18.0, -110.0, 0.4, 4.0, 3.0);
+        self.spawn_template_at(7, 42.0, 122.0, -0.5, -4.0, -3.0);
     }
 
     fn load_everything(&mut self) {
         self.load_free_play();
         self.temperature_u = 0.40;
-        self.spawn_template_at(5, -12.0, -112.0, 0.16, 3.0, 4.0);
-        self.spawn_template_at(5, 72.0, 122.0, -0.48, -4.0, -3.0);
-        self.push_atom(ELEMENT_X, -155.0, -112.0, 4.0, 2.0);
+        self.spawn_template_at(5, -34.0, -112.0, 0.12, 3.0, 4.0);
+        self.spawn_template_at(7, 112.0, 112.0, -0.48, -4.0, -3.0);
     }
 
     fn push_atom(&mut self, element: u8, x: f64, y: f64, vx: f64, vy: f64) -> usize {
@@ -383,13 +396,18 @@ impl World {
 
     fn add_stable_bond(&mut self, a: usize, b: usize) {
         let Some(param) = pair_param(self.atoms[a].element, self.atoms[b].element) else { return; };
+        self.add_stable_bond_order(a, b, param.order);
+    }
+
+    fn add_stable_bond_order(&mut self, a: usize, b: usize, order: u8) {
+        let Some(param) = bond_param(self.atoms[a].element, self.atoms[b].element, order) else { return; };
         let id = self.next_bond_id.max(1);
         self.next_bond_id = id.wrapping_add(1).max(1);
         self.bonds.push(Bond {
             id,
             a: a.min(b),
             b: a.max(b),
-            order: param.order,
+            order,
             state: BOND_STABLE,
             progress: 1.0,
             strain: 0.0,
@@ -408,18 +426,32 @@ impl World {
         rotation: f64,
         drift_x: f64,
         drift_y: f64,
-    ) {
+    ) -> usize {
         let template = INGREDIENTS[ingredient];
         let start = self.atoms.len();
         let (sin, cos) = rotation.sin_cos();
         for source in template.atoms {
             let dx = cos * source.x - sin * source.y;
             let dy = sin * source.x + cos * source.y;
-            self.push_atom(source.element, x + dx, y + dy, drift_x, drift_y);
+            let atom = self.push_atom(source.element, x + dx, y + dy, drift_x, drift_y);
+            self.atoms[atom].flags = source.flags;
         }
         for bond in template.bonds {
-            self.add_stable_bond(start + bond.a, start + bond.b);
+            self.add_stable_bond_order(start + bond.a, start + bond.b, bond.order);
         }
+        start
+    }
+
+    fn consume_vinyl_double_bond(&mut self, start: usize) {
+        let a = start;
+        let b = start + 1;
+        if let Some(index) = self.bond_between(a, b) {
+            self.bonds[index].order = 1;
+            self.bonds[index].rest_length = C_C_SINGLE.rest_length;
+            self.bonds[index].energy = -C_C_SINGLE.dissociation_energy;
+        }
+        self.atoms[a].flags &= !ATOM_FLAG_VINYL;
+        self.atoms[b].flags &= !ATOM_FLAG_VINYL;
     }
 
     pub fn set_playing(&mut self, value: bool) {
@@ -607,7 +639,10 @@ impl World {
         let excitation_decay = (-FIXED_DT / 2.25).exp();
         for atom in &mut self.atoms {
             atom.excitation *= excitation_decay;
-            if !atom.excitation.is_finite() { atom.excitation = 0.0; atom.flags |= 1; }
+            if !atom.excitation.is_finite() {
+                atom.excitation = 0.0;
+                atom.flags |= ATOM_FLAG_NUMERIC_GUARD;
+            }
             sanitize_atom(atom);
         }
         self.simulated_time += FIXED_DT;
@@ -677,7 +712,11 @@ impl World {
                 removals.push(index);
                 continue;
             }
-            let Some(param) = pair_param(self.atoms[a_index].element, self.atoms[b_index].element) else {
+            let Some(param) = bond_param(
+                self.atoms[a_index].element,
+                self.atoms[b_index].element,
+                self.bonds[index].order,
+            ) else {
                 removals.push(index);
                 continue;
             };
@@ -692,11 +731,31 @@ impl World {
             let radial_velocity = (self.atoms[b_index].vx - self.atoms[a_index].vx) * nx
                 + (self.atoms[b_index].vy - self.atoms[a_index].vy) * ny;
             let strain = (distance - param.rest_length) / param.rest_length;
-            let excitation = 0.5 * (self.atoms[a_index].excitation + self.atoms[b_index].excitation);
             let midpoint = (
                 0.5 * (self.atoms[a_index].x + self.atoms[b_index].x),
                 0.5 * (self.atoms[a_index].y + self.atoms[b_index].y),
             );
+            let photoinitiator_bond = self.bonds[index].order == 1
+                && self.atoms[a_index].flags & ATOM_FLAG_PHOTOINITIATOR != 0
+                && self.atoms[b_index].flags & ATOM_FLAG_PHOTOINITIATOR != 0;
+            let raw_excitation = 0.5
+                * (self.atoms[a_index].excitation + self.atoms[b_index].excitation);
+            let photopolymer_experiment = matches!(
+                self.experiment,
+                EXPERIMENT_EXPOSE_RESIN
+                    | EXPERIMENT_STRETCH_CURED
+                    | EXPERIMENT_PHOTOPOLYMER_FREE_PLAY
+            );
+            let excitation = if (photopolymer_experiment && !photoinitiator_bond)
+                || (!photoinitiator_bond
+                    && (self.atoms[a_index].flags | self.atoms[b_index].flags)
+                        & ATOM_FLAG_PHOTOINITIATOR
+                        != 0)
+            {
+                0.0
+            } else {
+                raw_excitation
+            };
             let mut completed = false;
             let mut started_breaking = false;
             let mut broken = false;
@@ -806,6 +865,12 @@ impl World {
                 self.ledger.breaking_absorption += param.dissociation_energy;
                 self.atoms[a_index].excitation = (self.atoms[a_index].excitation - 0.5 * param.dissociation_energy).max(0.0);
                 self.atoms[b_index].excitation = (self.atoms[b_index].excitation - 0.5 * param.dissociation_energy).max(0.0);
+                if photoinitiator_bond {
+                    self.atoms[a_index].flags |= ATOM_FLAG_RADICAL;
+                    self.atoms[b_index].flags |= ATOM_FLAG_RADICAL;
+                    self.atoms[a_index].excitation = self.atoms[a_index].excitation.max(110.0);
+                    self.atoms[b_index].excitation = self.atoms[b_index].excitation.max(110.0);
+                }
                 pending_events.push(Event {
                     kind: EVENT_BOND_BROKEN,
                     a: a_index as i32,
@@ -943,7 +1008,7 @@ impl World {
                 atom.y = atom.previous_y;
                 atom.vx = 0.0;
                 atom.vy = 0.0;
-                atom.flags |= 1;
+                atom.flags |= ATOM_FLAG_NUMERIC_GUARD;
             }
         }
     }
@@ -1038,7 +1103,7 @@ impl World {
         for &(a_index, b_index) in &pairs {
             let key = (a_index.min(b_index), a_index.max(b_index));
             if bonded.binary_search(&key).is_ok() || self.is_refractory(a_index, b_index) { continue; }
-            let Some(param) = pair_param(self.atoms[a_index].element, self.atoms[b_index].element) else { continue; };
+            let Some(param) = self.formation_param_for(a_index, b_index) else { continue; };
             let dx = self.atoms[b_index].x - self.atoms[a_index].x;
             let dy = self.atoms[b_index].y - self.atoms[a_index].y;
             let distance = dx.hypot(dy);
@@ -1090,17 +1155,30 @@ impl World {
                 }
             }
 
-            let close_encounter = distance <= contact + 1.5;
+            // In this planar teaching model the atoms attached around a vinyl
+            // carbon can sterically screen its centre. A radical-vinyl pair
+            // therefore gets a small, explicit reactive shell: it must still
+            // be local, activated, valence-compatible, and moving inward, but
+            // need not overlap the rendered atom discs before bond formation
+            // begins.
+            let reactive_shell = if self.radical_vinyl_target(a_index, b_index).is_some() {
+                14.0
+            } else {
+                1.5
+            };
+            let close_encounter = distance <= contact + reactive_shell;
             let excitation_capture = excitation >= param.activation_barrier && distance <= param.capture_distance;
-            let valence_available = occupied_valence[a_index].saturating_add(param.order)
-                    <= self.atoms[a_index].param().valence
-                && occupied_valence[b_index].saturating_add(param.order)
-                    <= self.atoms[b_index].param().valence;
+            let valence_available = self.formation_capacity_available(
+                &occupied_valence,
+                a_index,
+                b_index,
+                param.order,
+            );
             if activation >= param.activation_barrier && closing > 0.05 && (collided || close_encounter)
             {
                 let priority = activation + 2.0 * param.dissociation_energy / param.order as f64;
                 candidates.push(FormationCandidate { a: a_index, b: b_index, activation, priority });
-            } else if excitation_capture && valence_available && !close_encounter {
+            } else if excitation_capture && valence_available {
                 let priority = 2.0 * param.dissociation_energy / param.order as f64 - distance;
                 encounters.push(ActivatedEncounter {
                     a: a_index,
@@ -1138,21 +1216,22 @@ impl World {
         });
         let mut encounter_usage = occupied_valence.clone();
         for encounter in encounters {
-            let Some(param) = pair_param(
-                self.atoms[encounter.a].element,
-                self.atoms[encounter.b].element,
-            ) else {
+            let Some(param) = self.formation_param_for(encounter.a, encounter.b) else {
                 continue;
             };
-            if encounter_usage[encounter.a].saturating_add(param.order)
-                    > self.atoms[encounter.a].param().valence
-                || encounter_usage[encounter.b].saturating_add(param.order)
-                    > self.atoms[encounter.b].param().valence
-            {
+            if !self.formation_capacity_available(
+                &encounter_usage,
+                encounter.a,
+                encounter.b,
+                param.order,
+            ) {
                 continue;
             }
-            encounter_usage[encounter.a] += param.order;
-            encounter_usage[encounter.b] += param.order;
+            if let Some(target) = self.radical_vinyl_target(encounter.a, encounter.b) {
+                encounter_usage[target] = encounter_usage[target].saturating_sub(1);
+            }
+            encounter_usage[encounter.a] = encounter_usage[encounter.a].saturating_add(param.order);
+            encounter_usage[encounter.b] = encounter_usage[encounter.b].saturating_add(param.order);
             self.steer_activated_encounter(encounter);
         }
 
@@ -1164,15 +1243,110 @@ impl World {
         let mut usage = self.valence_usage();
         for candidate in candidates {
             if self.bond_between(candidate.a, candidate.b).is_some() { continue; }
-            let Some(param) = pair_param(self.atoms[candidate.a].element, self.atoms[candidate.b].element) else { continue; };
-            if usage[candidate.a].saturating_add(param.order) > self.atoms[candidate.a].param().valence
-                || usage[candidate.b].saturating_add(param.order) > self.atoms[candidate.b].param().valence
-            {
+            let Some(param) = self.formation_param_for(candidate.a, candidate.b) else { continue; };
+            if !self.formation_capacity_available(
+                &usage,
+                candidate.a,
+                candidate.b,
+                param.order,
+            ) {
                 continue;
             }
-            usage[candidate.a] += param.order;
-            usage[candidate.b] += param.order;
+            if let Some(target) = self.radical_vinyl_target(candidate.a, candidate.b) {
+                usage[target] = usage[target].saturating_sub(1);
+            }
+            usage[candidate.a] = usage[candidate.a].saturating_add(param.order);
+            usage[candidate.b] = usage[candidate.b].saturating_add(param.order);
+            self.prepare_radical_reaction(candidate.a, candidate.b);
             self.start_forming_bond(candidate.a, candidate.b, param);
+        }
+    }
+
+    fn formation_param_for(&self, a: usize, b: usize) -> Option<PairParam> {
+        let first = self.atoms.get(a)?;
+        let second = self.atoms.get(b)?;
+        let carbon_pair = first.element == ELEMENT_C || second.element == ELEMENT_C;
+        if !carbon_pair {
+            return pair_param(first.element, second.element);
+        }
+        if self.radical_vinyl_target(a, b).is_some()
+            || (first.flags & ATOM_FLAG_RADICAL != 0
+                && second.flags & ATOM_FLAG_RADICAL != 0
+                && first.element == ELEMENT_C
+                && second.element == ELEMENT_C)
+        {
+            return bond_param(first.element, second.element, 1);
+        }
+        None
+    }
+
+    fn radical_vinyl_target(&self, a: usize, b: usize) -> Option<usize> {
+        let first = self.atoms.get(a)?;
+        let second = self.atoms.get(b)?;
+        if first.flags & ATOM_FLAG_RADICAL != 0
+            && second.element == ELEMENT_C
+            && second.flags & ATOM_FLAG_VINYL != 0
+            && self.vinyl_partner(b).is_some()
+        {
+            return Some(b);
+        }
+        if second.flags & ATOM_FLAG_RADICAL != 0
+            && first.element == ELEMENT_C
+            && first.flags & ATOM_FLAG_VINYL != 0
+            && self.vinyl_partner(a).is_some()
+        {
+            return Some(a);
+        }
+        None
+    }
+
+    fn vinyl_partner(&self, target: usize) -> Option<usize> {
+        self.bonds.iter().find_map(|bond| {
+            if bond.order != 2 || bond.progress <= 0.0 { return None; }
+            let partner = if bond.a == target { bond.b }
+                else if bond.b == target { bond.a } else { return None; };
+            let atom = self.atoms.get(partner)?;
+            (atom.element == ELEMENT_C && atom.flags & ATOM_FLAG_VINYL != 0).then_some(partner)
+        })
+    }
+
+    fn formation_capacity_available(
+        &self,
+        usage: &[u8],
+        a: usize,
+        b: usize,
+        order: u8,
+    ) -> bool {
+        let mut first = *usage.get(a).unwrap_or(&u8::MAX);
+        let mut second = *usage.get(b).unwrap_or(&u8::MAX);
+        if let Some(target) = self.radical_vinyl_target(a, b) {
+            if target == a { first = first.saturating_sub(1); }
+            if target == b { second = second.saturating_sub(1); }
+        }
+        first.saturating_add(order) <= self.atoms[a].param().valence
+            && second.saturating_add(order) <= self.atoms[b].param().valence
+    }
+
+    fn prepare_radical_reaction(&mut self, a: usize, b: usize) {
+        if let Some(target) = self.radical_vinyl_target(a, b) {
+            let attacker = if target == a { b } else { a };
+            if let Some(partner) = self.vinyl_partner(target) {
+                if let Some(index) = self.bond_between(target, partner) {
+                    self.bonds[index].order = 1;
+                    self.bonds[index].rest_length = C_C_SINGLE.rest_length;
+                    self.bonds[index].energy = -C_C_SINGLE.dissociation_energy;
+                }
+                self.atoms[target].flags &= !ATOM_FLAG_VINYL;
+                self.atoms[partner].flags &= !ATOM_FLAG_VINYL;
+                self.atoms[attacker].flags &= !ATOM_FLAG_RADICAL;
+                self.atoms[partner].flags |= ATOM_FLAG_RADICAL;
+                self.atoms[partner].excitation = self.atoms[partner].excitation.max(84.0);
+            }
+        } else if self.atoms[a].flags & ATOM_FLAG_RADICAL != 0
+            && self.atoms[b].flags & ATOM_FLAG_RADICAL != 0
+        {
+            self.atoms[a].flags &= !ATOM_FLAG_RADICAL;
+            self.atoms[b].flags &= !ATOM_FLAG_RADICAL;
         }
     }
 
@@ -1547,7 +1721,7 @@ fn sanitize_atom(atom: &mut Atom) {
     if !atom.vx.is_finite() || !atom.vy.is_finite() {
         atom.vx = 0.0;
         atom.vy = 0.0;
-        atom.flags |= 1;
+        atom.flags |= ATOM_FLAG_NUMERIC_GUARD;
         return;
     }
     let speed = atom.vx.hypot(atom.vy);
@@ -1555,7 +1729,7 @@ fn sanitize_atom(atom: &mut Atom) {
         let scale = MAX_SPEED / speed;
         atom.vx *= scale;
         atom.vy *= scale;
-        atom.flags |= 2;
+        atom.flags |= ATOM_FLAG_SPEED_CLAMP;
     }
 }
 

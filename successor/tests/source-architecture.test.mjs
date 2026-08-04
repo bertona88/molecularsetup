@@ -32,8 +32,8 @@ test("browser remains a fail-closed Wasm presentation and gesture shell", async 
   assert.match(app, /setInterval\(streamCurrentIngredient,\s*145\)/);
   assert.match(app, /if\s*\(world\.playing\)\s*issueWorldCommand/);
 
-  assert.match(adapter, /ENGINE_ABI_VERSION\s*=\s*3/);
-  assert.match(adapter, /ENGINE_MODEL_VERSION\s*=\s*3/);
+  assert.match(adapter, /ENGINE_ABI_VERSION\s*=\s*4/);
+  assert.match(adapter, /ENGINE_MODEL_VERSION\s*=\s*4/);
   for (const command of [
     "ms_load_experiment",
     "ms_spawn_ingredient",
@@ -56,7 +56,7 @@ test("browser remains a fail-closed Wasm presentation and gesture shell", async 
   assert.match(app, /frameDivisor/);
 });
 
-test("v3 catalog keeps water intact and adds generic polymer ingredients", async () => {
+test("v4 catalog keeps water intact and adds atom-built photopolymer ingredients", async () => {
   const source = await readFile(catalogUrl, "utf8");
   const expected = [
     ["hydrogenAtom", 0],
@@ -64,8 +64,9 @@ test("v3 catalog keeps water intact and adds generic polymer ingredients", async
     ["hydrogen", 2],
     ["oxygen", 3],
     ["water", 4],
-    ["monomer", 5],
-    ["junction", 6],
+    ["acrylicAcid", 5],
+    ["diacrylate", 6],
+    ["peroxide", 7],
   ];
   const idBlock = source.match(/export const ENGINE_INGREDIENT_ID\s*=\s*\{([\s\S]*?)\}\s*as const;/);
   assert.ok(idBlock);
@@ -74,7 +75,8 @@ test("v3 catalog keeps water intact and adds generic polymer ingredients", async
   );
   assert.deepEqual(ids, expected);
   const formulas = [...source.matchAll(/^\s{4}formula:\s*"([^"]+)",\s*$/gm)].map((match) => match[1]);
-  assert.deepEqual(formulas, ["H", "O", "H₂", "O₂", "H₂O", "M₂", "X"]);
+  assert.deepEqual(formulas, ["H", "O", "H₂", "O₂", "H₂O", "C₃H₄O₂", "C₈H₁₀O₄", "H₂O₂"]);
+  assert.doesNotMatch(source, /generic M|three-way junction/);
   assert.doesNotMatch(source, /methane|ammonia|carbon dioxide|sodium|chloride/i);
 });
 

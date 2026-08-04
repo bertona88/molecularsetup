@@ -3,7 +3,7 @@
 ## Status and validity domain
 
 The active backend is a dependency-free Rust core compiled to WebAssembly. ABI
-and model versions are both `3`. It is a deterministic, reduced-unit,
+and model versions are both `4`. It is a deterministic, reduced-unit,
 two-dimensional, pedagogical bonding model. It is non-predictive chemistry.
 
 The model contains no reaction lookup, product graph, desired-product term, or
@@ -14,8 +14,10 @@ formation, strain, and breaking rules.
 
 ## State
 
-Each site stores a stable id, H/O element or generic M/X site id, current and previous position,
-velocity, force, age, excitation, and finite-state flags. A single optional
+Each site stores a stable id, H/O/C element id, current and previous position,
+velocity, force, age, excitation, and finite-state flags. Photopolymer flags
+distinguish peroxide initiator oxygens, unconsumed vinyl carbons, and transient
+reactive sites. A single optional
 grab record identifies an atom and a pointer target; the target acts through a
 spring rather than a position edit.
 
@@ -39,7 +41,7 @@ oldest trace record and does not change collision counters or model response.
 
 ## Systems, ingredients, valence, and pair parameters
 
-ABI v3 ingredient ids are:
+ABI v4 ingredient ids are:
 
 | Id | Ingredient | Initial bonds |
 |---:|---|---|
@@ -48,25 +50,27 @@ ABI v3 ingredient ids are:
 | 2 | H2 | one stable H-H order-1 bond |
 | 3 | O2 | one stable O-O order-2 bond |
 | 4 | H2O | two stable O-H order-1 bonds |
-| 5 | generic monomer M2 | one stable M-M order-1 bond; one free valence at each end |
-| 6 | generic junction X | none; three available connections |
+| 5 | acrylic acid, C3H4O2 | atom-built template with one vinyl C=C and one carbonyl C=O |
+| 6 | ethylene glycol diacrylate, C8H10O4 | atom-built template with two vinyl C=C groups |
+| 7 | hydrogen peroxide, H2O2 | atom-built H-O-O-H initiator template |
 
-Hydrogen has valence capacity 1, oxygen 2, generic monomer site M 2, and generic
-junction X 3. `M` and `X` are model-site symbols, not chemical elements. A bond reserves
-its full integer order while forming, stable, stressed, or breaking, so no
-transient state may overfill valence.
+Hydrogen has valence capacity 1, oxygen 2, and carbon 4. A bond reserves its
+full integer order while forming, stable, stressed, or breaking. A local
+reactive-site addition atomically lowers one declared vinyl C=C from order 2
+to order 1 before reserving the new order-1 bond, so transient state does not
+overfill carbon valence.
 
-H-H, O-O, O-H, M-M, and M-X have versioned values for order, rest length, capture
-distance, spring stiffness, damping, activation barrier, formation time,
-dissociation energy, strain hysteresis, and excitation threshold. These are
-teaching parameters, not fitted bond energies or a published reactive force
-field.
+H-H, O-O, O-H, C-C, C-H, and C-O bonds have versioned order-specific values
+for rest length, capture distance, spring stiffness, damping, activation
+barrier, formation time, dissociation energy, strain hysteresis, and excitation
+threshold. These are teaching parameters, not fitted bond energies or a
+published reactive force field.
 
 Water experiments are ids 0–3: Make a bond, Break a bond, Ignite, and Free
-play. Polymer experiments are ids 4–6: Grow a chain, Stretch a chain, and Free
-play. Id 7 is the Everything sandbox. The system boundary is a grouping of
-ingredients and starting conditions; the engine continues to apply pair-local
-rules. H/O sites do not bond to M/X sites, and X-X has no declared pair rule.
+play. Photopolymer experiments are ids 4–6: Expose resin, Stretch cured, and
+Free play. Id 7 is the Everything sandbox. The system boundary is a grouping
+of ingredients and starting conditions; the engine continues to apply local
+element, bond-order, flag, collision, and valence rules.
 
 ## Coordinates, time, and mass
 
@@ -81,8 +85,7 @@ rules. H/O sites do not bond to M/X sites, and X-X has no declared pair rule.
   boundaries.
 - Hydrogen mass: 1 reduced unit.
 - Oxygen mass: 4 reduced units.
-- Generic M site mass: 3 reduced units.
-- Generic X junction mass: 5 reduced units.
+- Carbon mass: 3 reduced units.
 
 The physical H:O mass ratio is about 1:16. The compressed 1:4 ratio is an
 explicit nonphysical scaling chosen so oxygen moves visibly at warm and hot
@@ -107,13 +110,28 @@ an expanding wave; an atom receives excitation when the wavefront reaches it,
 with radial falloff. Excitation decays continuously. Sustained high heat also
 raises excitation above the top part of the heat range.
 
+In the Photopolymer system the same local command is presented as Light. Only
+the tagged peroxide O-O bond uses the low photo-cleavage threshold; other
+template bonds do not break merely from that exposure. When the O-O bond
+finishes breaking, its two oxygens become transient reactive sites. A reactive
+O or C site may form one order-1 bond with a locally encountered vinyl carbon.
+The planar radical-vinyl contact shell extends 14 reduced units beyond the
+rendered atom radii and remains bounded by the pair capture distance; this
+accounts explicitly for attached atoms screening the carbon center in two
+dimensions. Starting that bond changes the vinyl C=C to C-C and transfers the
+reactive flag to its partner carbon. Two reactive carbons may terminate by
+forming one order-1 C-C bond and clearing both flags. Connectivity still
+requires activation, inward relative motion, valence capacity, and a local
+favorable encounter; exposure does not install a product graph.
+
 Stable H2/O2 bonds do not rearrange at the Ignite preset's initial heat.
 Sufficient excitation or mechanical strain moves a bond through stress and
 breaking hysteresis. For free atoms with available valence, excitation above
 the pair barrier can be converted into bounded inward encounter motion. That
 steering conserves pair momentum, consumes excitation when it raises kinetic
-energy, and never creates connectivity: a favorable collision must still occur
-before a bond can begin forming.
+energy, and never creates connectivity by itself: the pair must still collide
+or reach its declared contact shell while moving inward before a bond can begin
+forming.
 
 ## Atom collisions and exact overlaps
 
@@ -133,7 +151,8 @@ zero repulsive response.
 
 An eligible pair starts a finite-duration `forming` bond only when:
 
-- the pair is H-H, O-O, O-H, M-M, or M-X;
+- the pair is H-H, O-O, or O-H under the Water rules, or is a declared local
+  reactive-site/vinyl or reactive-carbon termination pair;
 - both atoms have sufficient remaining integer valence;
 - the atoms collide or enter the contact shell while moving together;
 - relative collision energy plus excitation clears the activation barrier.
@@ -209,6 +228,8 @@ resonance, spin, tunneling, quantum behavior, three-dimensional geometry,
 solvent, calibrated kinetics, entropy, real pressure, real temperature,
 catalysis, and a published reactive parameter set. It cannot validate a real
 pathway, product distribution, rate, equilibrium, phase, hazard, synthesis, or
-mechanism. Its generic monomer and junction sites do not predict a real
-polymerization pathway, conversion, molecular-weight distribution, branching
-statistics, gel point, material property, processing condition, or safety.
+mechanism. Its acrylic acid, ethylene glycol diacrylate, and hydrogen peroxide
+templates state atom identity and initial topology only. They do not predict a
+real polymerization pathway, conversion, molecular-weight distribution,
+branching statistics, gel point, material property, processing condition,
+exposure dose, wavelength response, formulation, hazard, or safety.

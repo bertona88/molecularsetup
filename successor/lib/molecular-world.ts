@@ -9,8 +9,8 @@ import {
 } from "./molecular-catalog";
 
 export const ENGINE_WASM_URL = `${import.meta.env.BASE_URL}engine/molecularsetup_engine.wasm`;
-export const ENGINE_ABI_VERSION = 3;
-export const ENGINE_MODEL_VERSION = 3;
+export const ENGINE_ABI_VERSION = 4;
+export const ENGINE_MODEL_VERSION = 4;
 export const DEFAULT_WORLD_SEED = 0x4d4f4c45;
 
 export const EXPERIMENT_ID = {
@@ -18,9 +18,9 @@ export const EXPERIMENT_ID = {
   breakBond: 1,
   ignite: 2,
   freePlay: 3,
-  growChain: 4,
-  stretchChain: 5,
-  polymerFreePlay: 6,
+  exposeResin: 4,
+  stretchCured: 5,
+  photopolymerFreePlay: 6,
   everything: 7,
 } as const;
 
@@ -46,6 +46,8 @@ const ATOM_VY = 7;
 const ATOM_RADIUS = 8;
 const ATOM_EXCITATION = 9;
 const ATOM_GRABBED = 10;
+const ATOM_FLAGS = 12;
+const ATOM_FLAG_RADICAL = 1 << 3;
 
 const BOND_ID = 0;
 const BOND_ATOM_A = 1;
@@ -409,7 +411,7 @@ export class MolecularWorld {
       const modelVersion = unsignedResult(engine.ms_model_version(), "ms_model_version");
       if (abiVersion !== ENGINE_ABI_VERSION || modelVersion !== ENGINE_MODEL_VERSION) {
         throw new MolecularEngineError(
-          `Unsupported molecular engine ${abiVersion}/${modelVersion}; expected 3/3.`,
+          `Unsupported molecular engine ${abiVersion}/${modelVersion}; expected ${ENGINE_ABI_VERSION}/${ENGINE_MODEL_VERSION}.`,
         );
       }
 
@@ -618,11 +620,13 @@ export class MolecularWorld {
     }
     const counts = new Map<ElementKey, number>();
     let excited = 0;
+    let reactive = 0;
     let grabbed = 0;
     for (let offset = 0; offset < this.atomsView.length; offset += ATOM_STRIDE) {
       const element = elementPresentation(Math.trunc(this.atomsView[offset + ATOM_ELEMENT]));
       if (element) counts.set(element.symbol, (counts.get(element.symbol) ?? 0) + 1);
       if (this.atomsView[offset + ATOM_EXCITATION] > 20) excited += 1;
+      if ((Math.trunc(this.atomsView[offset + ATOM_FLAGS]) & ATOM_FLAG_RADICAL) !== 0) reactive += 1;
       if (this.atomsView[offset + ATOM_GRABBED] !== 0) grabbed += 1;
     }
     const elements = Array.from(counts.entries())
@@ -633,7 +637,7 @@ export class MolecularWorld {
       const state = Math.trunc(this.bondsView[offset + BOND_STATE]);
       if (state >= 0 && state < states.length) states[state] += 1;
     }
-    return `${this.atomCount} atoms${elements ? `: ${elements}` : ""}. ${this.bondCount} bonds: ${states[0]} forming, ${states[1]} stable, ${states[2]} stressed, ${states[3]} breaking. ${excited} excited atoms.${grabbed > 0 ? ` ${grabbed} grabbed.` : ""} Simulation ${this.playing ? "playing" : "paused"}.`;
+    return `${this.atomCount} atoms${elements ? `: ${elements}` : ""}. ${this.bondCount} bonds: ${states[0]} forming, ${states[1]} stable, ${states[2]} stressed, ${states[3]} breaking. ${excited} excited atoms.${reactive > 0 ? ` ${reactive} reactive sites.` : ""}${grabbed > 0 ? ` ${grabbed} grabbed.` : ""} Simulation ${this.playing ? "playing" : "paused"}.`;
   }
 
   statistics(): EngineStatistics | null {
@@ -736,9 +740,9 @@ export class MolecularWorld {
   }
 
   private renderField(context: CanvasRenderingContext2D, width: number, height: number): void {
-    const polymer = this.presentationExperiment === "growChain"
-      || this.presentationExperiment === "stretchChain"
-      || this.presentationExperiment === "polymerFreePlay";
+    const polymer = this.presentationExperiment === "exposeResin"
+      || this.presentationExperiment === "stretchCured"
+      || this.presentationExperiment === "photopolymerFreePlay";
     const everything = this.presentationExperiment === "everything";
     const field = polymer
       ? { center: "#211f43", middle: "#111a31", edge: "#080f1d", grid: "rgba(192, 177, 255, .055)" }
@@ -781,9 +785,9 @@ export class MolecularWorld {
   private renderContainerInterior(context: CanvasRenderingContext2D): void {
     const bounds = this.containerScreenBounds();
     if (!bounds) return;
-    const polymer = this.presentationExperiment === "growChain"
-      || this.presentationExperiment === "stretchChain"
-      || this.presentationExperiment === "polymerFreePlay";
+    const polymer = this.presentationExperiment === "exposeResin"
+      || this.presentationExperiment === "stretchCured"
+      || this.presentationExperiment === "photopolymerFreePlay";
     const everything = this.presentationExperiment === "everything";
     const gradient = context.createLinearGradient(bounds.left, bounds.top, bounds.right, bounds.bottom);
     gradient.addColorStop(
@@ -917,6 +921,7 @@ export class MolecularWorld {
       const y = this.atomsView[offset + ATOM_Y];
       const excitation = this.atomsView[offset + ATOM_EXCITATION];
       const grabbed = this.atomsView[offset + ATOM_GRABBED] !== 0;
+      const reactive = (Math.trunc(this.atomsView[offset + ATOM_FLAGS]) & ATOM_FLAG_RADICAL) !== 0;
       const speed = Math.hypot(this.atomsView[offset + ATOM_VX], this.atomsView[offset + ATOM_VY]);
       if (![x, y, excitation, speed].every(finite)) continue;
       const screen = this.worldToScreen(x, y);
@@ -930,7 +935,7 @@ export class MolecularWorld {
         continue;
       }
 
-      const excitationGlow = clamp(excitation / 180, 0, 1);
+      const excitationGlow = Math.max(clamp(excitation / 180, 0, 1), reactive ? 0.78 : 0);
       const sprite = this.atomSprite(
         context,
         element,
@@ -946,6 +951,21 @@ export class MolecularWorld {
         sprite.size,
         sprite.size,
       );
+      if (reactive) {
+        context.save();
+        context.strokeStyle = "rgba(255, 211, 104, .92)";
+        context.shadowColor = "rgba(255, 178, 55, .9)";
+        context.shadowBlur = 12;
+        context.lineWidth = 1.6;
+        context.beginPath();
+        context.arc(screen.x, screen.y, radius + 4.5, -0.35, Math.PI * 1.45);
+        context.stroke();
+        context.fillStyle = "rgba(255, 225, 145, .95)";
+        context.beginPath();
+        context.arc(screen.x + radius * 0.72, screen.y - radius * 0.78, 2.1, 0, Math.PI * 2);
+        context.fill();
+        context.restore();
+      }
       if (speed > 40) {
         context.strokeStyle = `rgba(172, 226, 241, ${clamp((speed - 40) / 120, 0, 0.28)})`;
         context.lineWidth = 1;
@@ -1022,6 +1042,15 @@ export class MolecularWorld {
     spriteContext.beginPath();
     spriteContext.arc(extent, extent, radiusBucket + 1.35, 0, Math.PI * 2);
     spriteContext.fill();
+    if (radiusBucket >= 5) {
+      spriteContext.fillStyle = element.symbol === "H"
+        ? "rgba(24, 39, 49, .72)"
+        : "rgba(247, 251, 252, .88)";
+      spriteContext.font = `700 ${Math.max(7, radiusBucket * 1.05)}px "Avenir Next", sans-serif`;
+      spriteContext.textAlign = "center";
+      spriteContext.textBaseline = "middle";
+      spriteContext.fillText(element.symbol, extent, extent + 0.4);
+    }
     spriteContext.shadowBlur = 0;
     spriteContext.fillStyle = element.color;
     spriteContext.beginPath();
@@ -1323,7 +1352,9 @@ export class MolecularWorld {
       Math.trunc(stats[STAT_ABI_VERSION]) !== ENGINE_ABI_VERSION ||
       Math.trunc(stats[STAT_MODEL_VERSION]) !== ENGINE_MODEL_VERSION
     ) {
-      throw new MolecularEngineError("Stats view does not report model/ABI 3/3.");
+      throw new MolecularEngineError(
+        `Stats view does not report model/ABI ${ENGINE_MODEL_VERSION}/${ENGINE_ABI_VERSION}.`,
+      );
     }
     if (Math.trunc(stats[STAT_ATOM_COUNT]) !== atoms.length / ATOM_STRIDE) {
       throw new MolecularEngineError("Atom view length disagrees with stats.");
@@ -1335,7 +1366,7 @@ export class MolecularWorld {
       throw new MolecularEngineError("Event view length disagrees with stats.");
     }
     if (walls.length / WALL_STRIDE !== 4) {
-      throw new MolecularEngineError("ABI v3 requires one four-wall container.");
+      throw new MolecularEngineError("ABI v4 requires one four-wall container.");
     }
     this.atomsView = atoms;
     this.bondsView = bonds;
@@ -1438,7 +1469,7 @@ function typedView<T extends Float32Array | Float64Array>(
   const length = unsignedResult(lengthExport(), `ms_${name}_len`);
   const stride = unsignedResult(strideExport(), `ms_${name}_stride`);
   if (stride !== expectedStride || length % stride !== 0) {
-    throw new MolecularEngineError(`${name} view violates its ABI v3 stride.`);
+    throw new MolecularEngineError(`${name} view violates its ABI v4 stride.`);
   }
   if (pointer % bytesPerElement !== 0) {
     throw new MolecularEngineError(`${name} pointer is misaligned.`);

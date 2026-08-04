@@ -6,11 +6,12 @@ The active greenfield successor lives in [`successor/`](./successor). It is a
 bonding-first teaching world built from a deterministic Rust/WebAssembly engine
 and a touch-first React/Canvas2D shell.
 
-ABI/model v3 intentionally replaces v2. The screen opens inside a populated
-container with Water, Polymers, and Everything systems. Water retains Make a
-bond, Break a bond, Ignite, and Free play with H, O, H2, O2, and H2O. Polymers
-adds generic M2 monomers and X junctions for chain growth, stretching, and free
-play; Everything exposes both families. Collision, activation, excitation, bond
+ABI/model v4 intentionally replaces v3. The screen opens inside a populated
+container with Water, Photopolymer, and Everything systems. Water retains Make
+a bond, Break a bond, Ignite, and Free play with H, O, H2, O2, and H2O.
+Photopolymer adds atom-built acrylic acid, ethylene glycol diacrylate, and
+hydrogen peroxide for exposure, stretching, and free play; Everything exposes
+all ingredients. Collision, activation, excitation, bond
 formation/strain/breaking, energy traces, and finite-speed piston response are
 visible causal events. There is no persistent numerical dashboard, inspector,
 reaction table, product selector, lesson panel, or browser-side physics fallback.
@@ -32,9 +33,9 @@ Rust/Wasm rebuilds and heavyweight Chromium tests belong on `devbox-home` or
 CI. See [`successor/README.md`](./successor/README.md).
 
 The model is explicitly reduced, planar, pedagogical, and non-predictive. It
-uses compressed H/O masses, generic polymer sites, and versioned teaching
-parameters, with no reactant-to-product lookup, water-production rule, or real
-polymer prediction. Read
+uses compressed H/O/C masses, atom-built photopolymer templates, and versioned
+teaching parameters, with no reactant-to-product lookup, water-production rule,
+or real polymer prediction. Read
 [`VISION.md`](./VISION.md),
 [`MOLECULAR_MODEL_CONTRACT.md`](./MOLECULAR_MODEL_CONTRACT.md),
 [`INTERFACE_CONTRACT.md`](./INTERFACE_CONTRACT.md),

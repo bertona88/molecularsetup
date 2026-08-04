@@ -2,26 +2,31 @@
 
 ## Exact status
 
-The successor targets ABI/model `3/3`: a deterministic Rust engine compiled to
+The successor targets ABI/model `4/4`: a deterministic Rust engine compiled to
 a zero-import WebAssembly module and presented by a static React/Canvas2D
 application. It is a dimensionless, planar, reduced pedagogical model, not a
 calibrated chemistry predictor.
 
 Source implementation, checked-in Wasm, and manifest are one acceptance unit.
-A source-only v3 change with a stale v2 artifact is not a valid candidate.
+A source-only v4 change with a stale v3 artifact is not a valid candidate.
 
-## Claims v3 may make
+## Claims v4 may make
 
-- The model explicitly represents H and O atoms and first-class bonds with
+- The model explicitly represents H, O, and C atoms and first-class bonds with
   forming, stable, stressed, and breaking states.
 - H valence is limited to 1 and O valence to 2; H-H and O-H use order 1 and O-O
   uses order 2.
-- Generic M sites have valence 2, generic X junctions have valence 3, and their
-  declared M-M/M-X order-1 bonds support linear growth and junctions.
-- Grow a chain begins with eight separate M2 monomers and reaches one connected
-  16-site chain under the tested deterministic preset.
-- Water, Polymers, and Everything are interface/model groupings; unsupported
-  H/O-to-M/X and X-X pairs do not acquire invented bonds.
+- C valence is limited to 4. The photopolymer ingredients are atom-built
+  acrylic acid C3H4O2, ethylene glycol diacrylate C8H10O4, and hydrogen peroxide
+  H2O2 structural templates.
+- Expose resin begins with four separate acrylic acid templates and two
+  peroxide initiators. The tested dark interval preserves connectivity; local
+  light cleaves an initiator O-O bond, consumes at least one vinyl C=C site,
+  and forms at least one new bond.
+- A local reactive-site rule transfers reactivity across a consumed vinyl pair
+  while preserving H/O/C integer valence limits.
+- Water, Photopolymer, and Everything are interface/model groupings sharing the
+  same container and local element/bond/flag rules.
 - Exact atom overlaps separate along a deterministic id-derived direction.
 - Nonbonded collisions resolve overlap and exchange normal momentum.
 - Free atoms can form permitted bonds after favorable activated encounters.
@@ -43,7 +48,7 @@ A source-only v3 change with a stale v2 artifact is not a valid candidate.
 - The browser consumes versioned packed arrays and does not calculate forces,
   mutate bonds, add thermal noise, or silently substitute another model.
 
-## Claims v3 must not make
+## Claims v4 must not make
 
 - that reduced distance, time, temperature, energy, load, or pressure equals an
   SI quantity;
@@ -58,9 +63,10 @@ A source-only v3 change with a stale v2 artifact is not a valid candidate.
   chemistry, or another validated reactive force field;
 - that visual stability alone establishes numerical validity;
 - that an ingredient template validates real behavior of that substance.
-- that M or X is a chemical element, that M2 represents a named monomer, or
-  that the polymer system predicts real conversion, molecular weight,
-  branching, gelation, mechanics, processing, synthesis, or safety.
+- that the reduced peroxide cleavage and vinyl-consumption rules validate a
+  real radical mechanism, exposure wavelength/dose, conversion, molecular
+  weight, branching, gelation, mechanics, formulation, processing, synthesis,
+  hazard, or safety.
 
 ## Correctness layers
 
@@ -71,8 +77,9 @@ A source-only v3 change with a stale v2 artifact is not a valid candidate.
    accounting.
 3. **Activation and scenarios:** Make a bond, Break a bond, ten-second no-spark
    Ignite stability, one-second spark response, eight-second 75% oxygen
-   H-O-H topology, 16-site generic chain growth, chain strain under dragging,
-   and unscripted system-scoped Free play.
+   H-O-H topology, dark photopolymer stability, light-driven initiator
+   cleavage, vinyl consumption, new bond formation, cured-backbone strain
+   under dragging, and unscripted system-scoped Free play.
 4. **Perceptual numerical gates:** warm/hot oxygen displacement, at least 5x
    endpoint motion difference, and piston response within 500 ms.
 5. **Mechanical interaction:** spring grabbing, finite-speed piston, wall
@@ -80,7 +87,7 @@ A source-only v3 change with a stale v2 artifact is not a valid candidate.
    state.
 6. **Determinism and accounting:** fixed-step replay, seeded randomness,
    command guards, step cap, and finite internal ledgers.
-7. **Wasm boundary:** zero imports, all v3 exports, exact strides, bounded packed
+7. **Wasm boundary:** zero imports, all v4 exports, exact strides, bounded packed
    views, mutation pointer invalidation, replay, invalid input, artifact hash,
    and ABI/model identity.
 8. **Browser behavior:** populated first paint, atom drag, spark, temperature
@@ -96,7 +103,7 @@ A source-only v3 change with a stale v2 artifact is not a valid candidate.
 The crate retains an isolated reduced-unit Lennard-Jones conformance fixture
 covering shifted-force cutoff, periodic boundaries, velocity-Verlet drift and
 convergence, and deterministic Langevin calibration. It protects numerical
-method discipline only. It does not share the v3 bonding model and does not
+method discipline only. It does not share the v4 bonding model and does not
 validate any visible chemistry claim.
 
 ## Evidence boundaries

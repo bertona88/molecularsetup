@@ -1,4 +1,4 @@
-//! Deterministic reduced-unit molecular teaching engine, ABI/model 3/3.
+//! Deterministic reduced-unit molecular teaching engine, ABI/model 4/4.
 //!
 //! Rust owns atom collisions, explicit bond state, excitation, temperature,
 //! grabs, piston motion, event persistence, and energy bookkeeping. The public
